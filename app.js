@@ -223,7 +223,7 @@ function mapEspnStatus(espnName) {
 
 // ── Data layer ─────────────────────────────────────────────────────────────────
 
-const LS_MATCHES_KEY = 'wc_matches_cache';
+const LS_MATCHES_KEY = 'wc_espn_v1'; // renamed from wc_matches_cache to bust stale API-Football cache
 
 // All 104 WC matches fall between these dates
 const ESPN_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260611-20260719&limit=200';
