@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>World Cup Fantasy Leaderboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>World Cup Fantasy 2026</h1>
+    <div id="status-bar">
+      <span id="data-source" class="badge"></span>
+      <span id="last-updated"></span>
+    </div>
+  </header>
+
+  <main>
+    <section id="leaderboard-section">
+      <h2>Leaderboard</h2>
+      <div id="leaderboard-container">
+        <p class="loading">Loading scores…</p>
+      </div>
+    </section>
+
+    <section id="matches-section">
+      <h2>Recent Results</h2>
+      <div id="matches-container">
+        <p class="loading">Loading matches…</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Data via <a href="https://www.api-football.com/" target="_blank" rel="noopener">API-Football</a></p>
+  </footer>
+
+  <!-- Load config first so other scripts can reference CONFIG -->
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script src="leaderboard.js"></script>
+  <script>
+    (async () => {
+      const app = new ScoringEngine();
+      await app.init();
+    })();
+  </script>
+</body>
+</html>
