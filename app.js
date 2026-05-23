@@ -722,10 +722,15 @@ class ScoringEngine {
     this._scheduleRefresh();
   }
 
-  async _fetchAndRender() {
+  async _fetchAndRender(forceFresh = false) {
+    // When polling live matches, bypass localStorage cache so we always get fresh data
+    if (forceFresh) {
+      try { localStorage.removeItem(LS_MATCHES_KEY); } catch {}
+    }
+
     try {
       this._matches  = await this._data.fetchMatches();
-      this._standings = null; // inferred from knockout matches
+      this._standings = null;
     } catch (err) {
       console.warn('fetchMatches failed, rendering with empty data:', err.message);
       this._matches   = [];
@@ -734,6 +739,7 @@ class ScoringEngine {
     }
 
     this._updateHeader();
+    this._renderLiveBanner();
     this._renderSchedule();
     this._renderGroups();
     this._renderFeed();
@@ -742,21 +748,40 @@ class ScoringEngine {
 
   /**
    * Schedule the next auto-refresh.
-   * TTL is 5 min if any match is currently live, 60 min otherwise.
+   * When a live match is in progress: poll every 60 s and bypass cache.
+   * Otherwise: poll on CACHE_TTL_IDLE_MS (60 min).
    */
   _scheduleRefresh() {
     clearTimeout(this._refreshTimer);
     const anyLive = this._matches.some(m => isLive(m.status));
-    const ttl     = anyLive ? CONFIG.CACHE_TTL_LIVE_MS : CONFIG.CACHE_TTL_IDLE_MS;
+    const ttl     = anyLive ? 60 * 1000 : CONFIG.CACHE_TTL_IDLE_MS;
     this._nextRefreshAt = Date.now() + ttl;
     this._refreshTimer  = setTimeout(async () => {
-      await this._fetchAndRender();
+      await this._fetchAndRender(anyLive); // force-fresh only when live
       this._scheduleRefresh();
     }, ttl);
     startCountdown(this._nextRefreshAt);
   }
 
   // ── Rendering helpers ──────────────────────────────────────────────────────
+
+  _renderLiveBanner() {
+    const container = document.getElementById('live-banner');
+    if (!container) return;
+
+    const live = getLiveMatches(this._matches);
+    container.innerHTML = '';
+
+    if (!live.length) {
+      container.hidden = true;
+      return;
+    }
+
+    container.hidden = false;
+    for (const m of live) {
+      container.appendChild(_buildLiveBannerCard(m));
+    }
+  }
 
   _updateHeader() {
     const badge = document.getElementById('data-source');
@@ -992,6 +1017,121 @@ function _buildMatchRow(m) {
     <span class="sched-status">${statusLabel}</span>
   `;
   return row;
+}
+
+// ── Live match banner ──────────────────────────────────────────────────────────
+
+/**
+ * Returns all currently live matches that involve at least one owned team.
+ */
+function getLiveMatches(matches) {
+  return matches.filter(m =>
+    isLive(m.status) && (TEAM_OWNER[m.homeTeam] || TEAM_OWNER[m.awayTeam])
+  );
+}
+
+/**
+ * Points the given team would earn if the current score holds at full time.
+ * Does not include the group-advance bonus (depends on other matches).
+ */
+function _potentialMatchPts(match, teamName) {
+  const isHome    = match.homeTeam === teamName;
+  const teamScore = isHome ? match.homeScore : match.awayScore;
+  const oppScore  = isHome ? match.awayScore : match.homeScore;
+
+  if (teamScore === null || oppScore === null) return 0;
+
+  const winning = teamScore > oppScore;
+  const drawing = teamScore === oppScore;
+  const isTierB = !TIER_A.has(teamName);
+
+  if (match.round === 'group') {
+    if (winning) return SCORING.group_win + (isTierB ? SCORING.group_win_bonus : 0);
+    if (drawing) return SCORING.group_draw;
+    return 0;
+  }
+
+  if (winning) {
+    const key = ROUND_SCORE_KEY[match.round];
+    return key ? SCORING[key] : 0;
+  }
+  return 0;
+}
+
+const LIVE_ROUND_LABELS = {
+  group:        'Group Stage',
+  round_of_32:  'Round of 32',
+  round_of_16:  'Round of 16',
+  quarterfinal: 'Quarterfinal',
+  semifinal:    'Semifinal',
+  final:        'Final',
+};
+
+function _buildLiveBannerCard(m) {
+  const homeFlag = TEAM_FLAGS[m.homeTeam] || '';
+  const awayFlag = TEAM_FLAGS[m.awayTeam] || '';
+
+  const elapsed = m.status === 'HT' ? 'HT'
+                : m.elapsed != null  ? `${m.elapsed}'`
+                : 'LIVE';
+
+  const roundLabel = LIVE_ROUND_LABELS[m.round] || m.round || '';
+
+  // Build one row per participant with an owned team in this match
+  const ownerEntries = [];
+  for (const [teamName, side] of [[m.homeTeam, 'home'], [m.awayTeam, 'away']]) {
+    const owner = TEAM_OWNER[teamName];
+    if (!owner) continue;
+
+    const isHome    = side === 'home';
+    const teamScore = isHome ? m.homeScore : m.awayScore;
+    const oppScore  = isHome ? m.awayScore : m.homeScore;
+    const pts       = _potentialMatchPts(m, teamName);
+    const situation = teamScore > oppScore ? 'winning'
+                    : teamScore < oppScore ? 'losing'
+                    : 'drawing';
+
+    ownerEntries.push({ owner, teamName, pts, situation, color: OWNER_COLORS[owner] || '#8090b8' });
+  }
+
+  const ownerRowsHtml = ownerEntries.map(({ owner, teamName, pts, situation, color }) => {
+    const flag      = TEAM_FLAGS[teamName] || '';
+    const ptsTxt    = pts > 0 ? `+${pts} pts if ${situation === 'winning' ? 'lead holds' : 'score holds'}`
+                              : 'no pts if score holds';
+    const situClass = situation === 'winning' ? 'lbs-win' : situation === 'losing' ? 'lbs-lose' : 'lbs-draw';
+    const situIcon  = situation === 'winning' ? '▲' : situation === 'losing' ? '▼' : '=';
+    return `
+      <div class="lbanner-owner-row">
+        <span class="lbanner-owner-dot" style="background:${color}"></span>
+        <span class="lbanner-owner-name" style="color:${color}">${escHtml(owner)}</span>
+        <span class="lbanner-owner-team">${flag}\u202f${escHtml(teamName)}</span>
+        <span class="lbanner-situ ${situClass}">${situIcon}</span>
+        <span class="lbanner-pts ${pts > 0 ? 'lbp-pos' : 'lbp-zero'}">${escHtml(ptsTxt)}</span>
+      </div>`;
+  }).join('');
+
+  const el = document.createElement('div');
+  el.className = 'live-banner-card';
+  el.innerHTML = `
+    <div class="lbanner-top">
+      <span class="lbanner-live-pill"><span class="live-pulse-dot"></span>LIVE</span>
+      <span class="lbanner-elapsed">${escHtml(elapsed)}</span>
+      <span class="lbanner-round">${escHtml(roundLabel)}</span>
+    </div>
+    <div class="lbanner-match">
+      <span class="lbanner-team lbanner-home">
+        <span class="lbanner-flag">${homeFlag}</span>
+        <span class="lbanner-tname">${escHtml(m.homeTeam)}</span>
+      </span>
+      <span class="lbanner-score">${m.homeScore ?? 0}–${m.awayScore ?? 0}</span>
+      <span class="lbanner-team lbanner-away">
+        <span class="lbanner-tname">${escHtml(m.awayTeam)}</span>
+        <span class="lbanner-flag">${awayFlag}</span>
+      </span>
+    </div>
+    <div class="lbanner-owners">${ownerRowsHtml}</div>
+  `;
+  return el;
 }
 
 // ── Activity feed ──────────────────────────────────────────────────────────────

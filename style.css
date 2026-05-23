@@ -1180,6 +1180,182 @@ a:hover { color: var(--red); }
   color: var(--text-3);
 }
 
+/* ── Live match banner ────────────────────────────────────────────────────── */
+
+#live-banner {
+  margin-bottom: 1rem;
+}
+
+.live-banner-card {
+  background: var(--bg-card);
+  border: 1px solid var(--red-border);
+  border-left: 4px solid var(--red);
+  border-radius: var(--r-lg);
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.6rem;
+  box-shadow: 0 0 0 3px rgba(217,48,37,.08), var(--shadow-card);
+  animation: live-card-breathe 3s ease-in-out infinite;
+}
+
+@keyframes live-card-breathe {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(217,48,37,.08), var(--shadow-card); }
+  50%       { box-shadow: 0 0 0 5px rgba(217,48,37,.15), var(--shadow-lift); }
+}
+
+.lbanner-top {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.65rem;
+}
+
+.lbanner-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--red);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 0.2em 0.6em;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.live-pulse-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: #fff;
+  border-radius: 50%;
+  animation: breathe 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.lbanner-elapsed {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--red);
+  letter-spacing: 0.04em;
+}
+
+.lbanner-round {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--text-3);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.lbanner-match {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.65rem;
+}
+
+.lbanner-team {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.lbanner-home { justify-content: flex-end; }
+.lbanner-away { justify-content: flex-start; flex-direction: row-reverse; }
+
+.lbanner-flag {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.lbanner-tname {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lbanner-score {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  line-height: 1;
+  color: var(--red);
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+  padding: 0 0.25rem;
+}
+
+.lbanner-owners {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.6rem;
+}
+
+.lbanner-owner-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.lbanner-owner-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.lbanner-owner-name {
+  font-weight: 700;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.lbanner-owner-team {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-2);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.lbanner-situ {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.lbs-win  { color: var(--green); }
+.lbs-lose { color: var(--red); }
+.lbs-draw { color: var(--text-3); }
+
+.lbanner-pts {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.lbp-pos  { color: var(--green); font-weight: 600; }
+.lbp-zero { color: var(--text-3); }
+
+@media (max-width: 400px) {
+  .lbanner-tname { font-size: 0.78rem; }
+  .lbanner-score { font-size: 1.8rem; }
+  .lbanner-flag  { font-size: 1.25rem; }
+}
+
 /* ── Biggest Mover card ───────────────────────────────────────────────────── */
 .bm-card {
   display: flex;
