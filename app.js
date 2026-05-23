@@ -29,11 +29,6 @@ const PARTICIPANTS = {
   Goon:     ['Netherlands', 'Ecuador'],
 };
 
-// Populate TEAM_OWNER reverse map
-for (const [name, teams] of Object.entries(PARTICIPANTS)) {
-  for (const t of teams) TEAM_OWNER[t] = name;
-}
-
 // ── Owner → color map ─────────────────────────────────────────────────────────
 
 const OWNER_COLORS = {
@@ -53,9 +48,11 @@ const OWNER_COLORS = {
   'Goon':      '#7c3aed',
 };
 
-// Reverse map: team → participant name
+// Reverse map: team → participant name (populated below)
 const TEAM_OWNER = {};
-// (populated after PARTICIPANTS is defined — see below)
+for (const [name, teams] of Object.entries(PARTICIPANTS)) {
+  for (const t of teams) TEAM_OWNER[t] = name;
+}
 
 // ── Groups ─────────────────────────────────────────────────────────────────────
 
