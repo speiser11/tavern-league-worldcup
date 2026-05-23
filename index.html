@@ -3,47 +3,62 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>World Cup Fantasy Leaderboard</title>
+  <title>2026 World Cup Fantasy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header>
-    <h1>World Cup Fantasy 2026</h1>
-    <div id="status-bar">
-      <span id="data-source" class="badge"></span>
-      <span id="last-updated"></span>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="header-left">
+        <h1 class="site-title">2026 World Cup Fantasy</h1>
+        <span class="round-badge" id="current-round">—</span>
+      </div>
+      <div class="header-right">
+        <span class="source-badge" id="data-source"></span>
+        <span class="updated-time" id="last-updated"></span>
+      </div>
     </div>
   </header>
 
-  <main>
-    <section id="leaderboard-section">
-      <h2>Leaderboard</h2>
+  <main class="site-main">
+
+    <section class="lb-section">
+      <!-- Column headers — visible only on desktop -->
+      <div class="lb-col-headers" aria-hidden="true">
+        <span class="lbch-rank">#</span>
+        <span class="lbch-name">Player</span>
+        <span class="lbch-teams">Teams</span>
+        <span class="lbch-score">Pts</span>
+      </div>
+
       <div id="leaderboard-container">
-        <p class="loading">Loading scores…</p>
+        <p class="state-msg">Loading leaderboard…</p>
       </div>
     </section>
 
-    <section id="matches-section">
-      <h2>Recent Results</h2>
+    <section class="matches-section">
+      <h2 class="section-heading">Recent Matches</h2>
       <div id="matches-container">
-        <p class="loading">Loading matches…</p>
+        <p class="state-msg">Loading matches…</p>
       </div>
     </section>
+
   </main>
 
-  <footer>
-    <p>Data via <a href="https://www.api-football.com/" target="_blank" rel="noopener">API-Football</a></p>
+  <footer class="site-footer">
+    <span id="refresh-countdown" class="countdown-text"></span>
+    <span class="footer-sep">·</span>
+    <span>Data: <a href="https://www.api-football.com/" target="_blank" rel="noopener">API-Football</a></span>
   </footer>
 
-  <!-- Load config first so other scripts can reference CONFIG -->
   <script src="config.js"></script>
   <script src="app.js"></script>
   <script src="leaderboard.js"></script>
-  <script>
-    (async () => {
-      const app = new ScoringEngine();
-      await app.init();
-    })();
-  </script>
+  <script>new ScoringEngine().init();</script>
+
 </body>
 </html>

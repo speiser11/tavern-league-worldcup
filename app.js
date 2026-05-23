@@ -655,18 +655,25 @@ function calculateScores(matches, standings = null) {
 
 class ScoringEngine {
   constructor() {
-    this._data      = new DataLayer();
-    this._matches   = [];
-    this._standings = null;
+    this._data          = new DataLayer();
+    this._matches       = [];
+    this._standings     = null;
+    this._nextRefreshAt = 0;
+    this._refreshTimer  = null;
   }
 
+  /** Entry point — fetches data, renders, then schedules recurring refresh. */
   async init() {
+    await this._fetchAndRender();
+    this._scheduleRefresh();
+  }
+
+  async _fetchAndRender() {
     try {
-      // Fetch both in parallel; standings failure is non-fatal
       [this._matches, this._standings] = await Promise.all([
         this._data.fetchMatches(),
         this._data.fetchStandings().catch(err => {
-          console.warn('standings fetch failed, will infer from matches:', err.message);
+          console.warn('standings fetch failed, inferring from matches:', err.message);
           return null;
         }),
       ]);
@@ -675,20 +682,36 @@ class ScoringEngine {
       return;
     }
 
-    this._updateStatusBar();
+    this._updateHeader();
     this._renderMatches();
     this._renderLeaderboard();
   }
 
+  /**
+   * Schedule the next auto-refresh.
+   * TTL is 5 min if any match is currently live, 60 min otherwise.
+   */
+  _scheduleRefresh() {
+    clearTimeout(this._refreshTimer);
+    const anyLive = this._matches.some(m => isLive(m.status));
+    const ttl     = anyLive ? TTL_LIVE : TTL_IDLE;
+    this._nextRefreshAt = Date.now() + ttl;
+    this._refreshTimer  = setTimeout(async () => {
+      await this._fetchAndRender();
+      this._scheduleRefresh();
+    }, ttl);
+    startCountdown(this._nextRefreshAt);
+  }
+
   // ── Rendering helpers ──────────────────────────────────────────────────────
 
-  _updateStatusBar() {
+  _updateHeader() {
     const badge = document.getElementById('data-source');
     const ts    = document.getElementById('last-updated');
-    const labels = { live: 'Live', 'local-cache': 'Cached', 'gist-cache': 'Gist Cache' };
+    const labels = { live: 'Live', 'local-cache': 'Cached', 'gist-cache': 'Gist' };
     badge.textContent = labels[this._data.source] ?? this._data.source;
-    badge.className   = `badge ${this._data.source === 'live' ? 'live' : 'cached'}`;
-    ts.textContent    = `Updated ${new Date().toLocaleTimeString()}`;
+    badge.className   = `source-badge ${this._data.source === 'live' ? 'live' : 'cached'}`;
+    ts.textContent    = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
   _renderMatches() {
@@ -700,7 +723,7 @@ class ScoringEngine {
       .reverse();
 
     if (!relevant.length) {
-      container.innerHTML = '<p class="loading">No completed matches yet.</p>';
+      container.innerHTML = '<p class="state-msg">No completed matches yet.</p>';
       return;
     }
 
@@ -715,18 +738,18 @@ class ScoringEngine {
       const awayGoals = m.awayScore ?? '–';
       const dateStr   = new Date(m.date).toLocaleDateString();
       const statusStr = live
-        ? `<span class="status-live">${m.elapsed}'</span>`
+        ? `<span class="mc-live-indicator">${m.elapsed}'</span>`
         : m.statusLong;
 
       const card = document.createElement('div');
-      card.className = `match-card${live ? ' live' : ''}`;
+      card.className = `match-card${live ? ' is-live' : ''}`;
       card.innerHTML = `
-        <div class="teams">
-          <span>${homeFlag} ${m.homeTeam}</span>
-          <span class="score-line">${homeGoals} – ${awayGoals}</span>
-          <span>${m.awayTeam} ${awayFlag}</span>
+        <div class="mc-teams">
+          <span class="mc-home">${homeFlag} ${m.homeTeam}</span>
+          <span class="mc-score">${homeGoals}–${awayGoals}</span>
+          <span class="mc-away">${m.awayTeam} ${awayFlag}</span>
         </div>
-        <div class="meta">
+        <div class="mc-meta">
           <span>${dateStr}</span>
           <span>${statusStr}</span>
         </div>
@@ -739,12 +762,12 @@ class ScoringEngine {
   }
 
   _renderLeaderboard() {
-    renderLeaderboard(calculateScores(this._matches, this._standings));
+    renderLeaderboard(calculateScores(this._matches, this._standings), this._matches);
   }
 
   _renderError(msg) {
     document.getElementById('data-source').textContent = 'Error';
-    document.getElementById('data-source').className   = 'badge error';
+    document.getElementById('data-source').className   = 'source-badge error';
     document.getElementById('leaderboard-container').innerHTML =
       `<p class="error-msg">${msg}</p>`;
     document.getElementById('matches-container').innerHTML =
