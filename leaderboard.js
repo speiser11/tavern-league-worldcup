@@ -9,6 +9,7 @@
 // ── Module state ───────────────────────────────────────────────────────────────
 let _prevRanks          = {};   // { [name]: { rank, score } }
 let _countdownInterval  = null;
+let _currentMatches     = [];   // latest match array, used in breakdown
 
 // ── Main render ────────────────────────────────────────────────────────────────
 
@@ -17,6 +18,7 @@ let _countdownInterval  = null;
  * @param {object[]} matches — parsed match array (for current-round detection)
  */
 function renderLeaderboard(scores, matches) {
+  _currentMatches = matches || [];
   _prevRanks = _loadPrevRanks();
 
   const container = document.getElementById('leaderboard-container');
@@ -137,31 +139,57 @@ function _buildBreakdownHTML(entry) {
     const flag = TEAM_FLAGS[teamName] || '';
     const tier = TIER_A.has(teamName) ? 'Tier A' : 'Tier B';
 
+    // Stat chips
     const chips = [];
-
     if ((td.wins ?? 0) > 0)
       chips.push(`<span class="bd-stat-chip chip-win">${td.wins}W</span>`);
-
     if ((td.draws ?? 0) > 0)
       chips.push(`<span class="bd-stat-chip chip-draw">${td.draws}D</span>`);
-
     if ((td.bonuses ?? 0) > 0)
       chips.push(`<span class="bd-stat-chip chip-bonus">+${td.bonuses} bonus</span>`);
-
     if ((td.knockoutPts ?? 0) > 0)
       chips.push(`<span class="bd-stat-chip chip-ko">+${td.knockoutPts} KO</span>`);
-
     if (!chips.length)
       chips.push(`<span class="bd-stat-chip chip-none">No matches yet</span>`);
+
+    // Upcoming matches
+    const upcoming = _currentMatches
+      .filter(m => m.status === 'NS' && (m.homeTeam === teamName || m.awayTeam === teamName))
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .slice(0, 3);
+
+    let upcomingHtml = '';
+    if (upcoming.length) {
+      const rows = upcoming.map(m => {
+        const opp      = m.homeTeam === teamName ? m.awayTeam : m.homeTeam;
+        const oppFlag  = TEAM_FLAGS[opp] || '';
+        const dateStr  = new Date(m.date).toLocaleDateString([], { month: 'short', day: 'numeric' });
+        const timeStr  = new Date(m.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        const isHome   = m.homeTeam === teamName;
+        const oppLabel = opp.startsWith('Group') || opp.includes('Winner') || opp.includes('Loser')
+          ? `<span class="bd-up-tbd">${escHtml(opp)}</span>`
+          : `${oppFlag} ${escHtml(opp)}`;
+        return `<div class="bd-up-match">
+          <span class="bd-up-ha">${isHome ? 'vs' : '@'}</span>
+          <span class="bd-up-opp">${oppLabel}</span>
+          <span class="bd-up-date">${dateStr} · ${timeStr}</span>
+        </div>`;
+      }).join('');
+      upcomingHtml = `<div class="bd-upcoming"><div class="bd-upcoming-label">Upcoming</div>${rows}</div>`;
+    }
 
     return `
       <div class="bd-team">
         <div class="bd-top">
-          <span class="bd-team-name">${flag} ${escHtml(teamName)}</span>
-          <span class="bd-tier-label">${tier}</span>
+          <span class="bd-flag">${flag}</span>
+          <div class="bd-team-info">
+            <span class="bd-team-name">${escHtml(teamName)}</span>
+            <span class="bd-tier-label">${tier}</span>
+          </div>
           <span class="bd-team-pts">${td.total ?? 0}</span>
         </div>
         <div class="bd-stats">${chips.join('')}</div>
+        ${upcomingHtml}
       </div>
     `;
   }).join('');

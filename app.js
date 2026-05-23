@@ -309,8 +309,6 @@ class DataLayer {
       const homeTeam = canonicalTeam(home.team.displayName);
       const awayTeam = canonicalTeam(away.team.displayName);
 
-      // Skip placeholder bracket slots ("Group A Winner", "Round of 32 3 Winner", etc.)
-      if (!TEAM_FLAGS[homeTeam] || !TEAM_FLAGS[awayTeam]) continue;
 
       const st     = comp.status.type;
       const isPre  = st.state === 'pre';
@@ -664,7 +662,7 @@ class ScoringEngine {
     }
 
     this._updateHeader();
-    this._renderMatches();
+    this._renderSchedule();
     this._renderLeaderboard();
   }
 
@@ -695,51 +693,67 @@ class ScoringEngine {
     ts.textContent    = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
-  _renderMatches() {
-    const container = document.getElementById('matches-container');
+  _renderSchedule() {
+    const container = document.getElementById('schedule-container');
+    if (!container) return;
 
-    const relevant = this._matches
-      .filter(m => isFinished(m.status) || isLive(m.status))
-      .slice(-12)
-      .reverse();
-
-    if (!relevant.length) {
-      container.innerHTML = '<p class="state-msg">No completed matches yet.</p>';
+    if (!this._matches.length) {
+      container.innerHTML = '<p class="state-msg">No schedule data yet.</p>';
       return;
     }
 
-    const grid = document.createElement('div');
-    grid.className = 'matches-grid';
+    const ROUND_ORDER = ['group', 'round_of_32', 'round_of_16', 'quarterfinal', 'semifinal', 'final'];
+    const ROUND_LABELS = {
+      group:        'Group Stage',
+      round_of_32:  'Round of 32',
+      round_of_16:  'Round of 16',
+      quarterfinal: 'Quarterfinals',
+      semifinal:    'Semifinals',
+      final:        'Final',
+    };
 
-    for (const m of relevant) {
-      const live      = isLive(m.status);
-      const homeFlag  = TEAM_FLAGS[m.homeTeam] || '';
-      const awayFlag  = TEAM_FLAGS[m.awayTeam] || '';
-      const homeGoals = m.homeScore ?? '–';
-      const awayGoals = m.awayScore ?? '–';
-      const dateStr   = new Date(m.date).toLocaleDateString();
-      const statusStr = live
-        ? `<span class="mc-live-indicator">${m.elapsed}'</span>`
-        : m.statusLong;
+    const frag = document.createDocumentFragment();
 
-      const card = document.createElement('div');
-      card.className = `match-card${live ? ' is-live' : ''}`;
-      card.innerHTML = `
-        <div class="mc-teams">
-          <span class="mc-home">${homeFlag} ${m.homeTeam}</span>
-          <span class="mc-score">${homeGoals}–${awayGoals}</span>
-          <span class="mc-away">${m.awayTeam} ${awayFlag}</span>
-        </div>
-        <div class="mc-meta">
-          <span>${dateStr}</span>
-          <span>${statusStr}</span>
-        </div>
-      `;
-      grid.appendChild(card);
+    for (const round of ROUND_ORDER) {
+      const roundMatches = this._matches
+        .filter(m => m.round === round)
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+      if (!roundMatches.length) continue;
+
+      const section = document.createElement('div');
+      section.className = 'sched-section';
+
+      const rh = document.createElement('div');
+      rh.className = 'sched-round-header';
+      rh.textContent = ROUND_LABELS[round] || round;
+      section.appendChild(rh);
+
+      if (round === 'group') {
+        // Sub-group by group letter
+        const byGroup = {};
+        for (const m of roundMatches) {
+          const g = findTeamGroup(m.homeTeam) || findTeamGroup(m.awayTeam) || '?';
+          (byGroup[g] = byGroup[g] || []).push(m);
+        }
+        for (const groupLetter of Object.keys(byGroup).sort()) {
+          const gs = document.createElement('div');
+          gs.className = 'sched-group-section';
+          const gh = document.createElement('div');
+          gh.className = 'sched-group-header';
+          gh.textContent = `Group ${groupLetter}`;
+          gs.appendChild(gh);
+          for (const m of byGroup[groupLetter]) gs.appendChild(_buildMatchRow(m));
+          section.appendChild(gs);
+        }
+      } else {
+        for (const m of roundMatches) section.appendChild(_buildMatchRow(m));
+      }
+
+      frag.appendChild(section);
     }
 
     container.innerHTML = '';
-    container.appendChild(grid);
+    container.appendChild(frag);
   }
 
   _renderLeaderboard() {
@@ -751,7 +765,43 @@ class ScoringEngine {
     document.getElementById('data-source').className   = 'source-badge error';
     document.getElementById('leaderboard-container').innerHTML =
       `<p class="error-msg">${msg}</p>`;
-    document.getElementById('matches-container').innerHTML =
+    document.getElementById('schedule-container').innerHTML =
       `<p class="error-msg">${msg}</p>`;
   }
+}
+
+// ── Match row builder (used by schedule tab) ───────────────────────────────────
+
+function _buildMatchRow(m) {
+  const live     = isLive(m.status);
+  const finished = isFinished(m.status);
+  const homeFlag = TEAM_FLAGS[m.homeTeam] || '';
+  const awayFlag = TEAM_FLAGS[m.awayTeam] || '';
+
+  const d       = new Date(m.date);
+  const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  const timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+  let centerHtml;
+  if (finished) {
+    centerHtml = `<span class="sched-score is-final">${m.homeScore}–${m.awayScore}</span>`;
+  } else if (live) {
+    const elapsed = m.elapsed != null ? `${m.elapsed}'` : 'LIVE';
+    centerHtml = `<span class="sched-score is-live">${m.homeScore ?? 0}–${m.awayScore ?? 0}<span class="sched-live-dot"> ●</span></span>`;
+  } else {
+    centerHtml = `<span class="sched-vs">vs</span>`;
+  }
+
+  const statusLabel = finished ? 'FT' : live ? (m.elapsed != null ? `${m.elapsed}'` : '●') : timeStr;
+
+  const row = document.createElement('div');
+  row.className = `sched-match${live ? ' is-live' : ''}${finished ? ' is-final' : ''}`;
+  row.innerHTML = `
+    <span class="sched-date">${dateStr}</span>
+    <span class="sched-team sched-home">${homeFlag ? `<span class="sched-flag">${homeFlag}</span>` : ''}<span class="sched-tname">${m.homeTeam}</span></span>
+    <span class="sched-center">${centerHtml}</span>
+    <span class="sched-team sched-away"><span class="sched-tname">${m.awayTeam}</span>${awayFlag ? `<span class="sched-flag">${awayFlag}</span>` : ''}</span>
+    <span class="sched-status">${statusLabel}</span>
+  `;
+  return row;
 }
