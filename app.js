@@ -29,6 +29,34 @@ const PARTICIPANTS = {
   Goon:     ['Netherlands', 'Ecuador'],
 };
 
+// Populate TEAM_OWNER reverse map
+for (const [name, teams] of Object.entries(PARTICIPANTS)) {
+  for (const t of teams) TEAM_OWNER[t] = name;
+}
+
+// ── Owner → color map ─────────────────────────────────────────────────────────
+
+const OWNER_COLORS = {
+  'Ashleigh':  '#ec4899',
+  'Baker':     '#0d9488',
+  'Chad':      '#f97316',
+  'Jackie':    '#a855f7',
+  'Jake':      '#2563eb',
+  'Joren':     '#16a34a',
+  'Keillor':   '#ef4444',
+  'Kyle':      '#0891b2',
+  'Logan':     '#d97706',
+  'Patrick':   '#4f46e5',
+  'Sara':      '#e11d48',
+  'TJ':        '#059669',
+  'Tom Moran': '#84cc16',
+  'Goon':      '#7c3aed',
+};
+
+// Reverse map: team → participant name
+const TEAM_OWNER = {};
+// (populated after PARTICIPANTS is defined — see below)
+
 // ── Groups ─────────────────────────────────────────────────────────────────────
 
 const GROUPS = {
@@ -634,6 +662,52 @@ function calculateScores(matches, standings = null) {
   return results;
 }
 
+// ── Group standings computation ────────────────────────────────────────────────
+
+/**
+ * Compute group stage standings from match data.
+ * Returns { A: [{team, played, won, drawn, lost, gf, ga, gd, pts}, …], B: …, … }
+ * Sorted by pts → gd → gf (standard FIFA tiebreaker).
+ */
+function computeGroupStandings(matches) {
+  const standings = {};
+  for (const [g, teams] of Object.entries(GROUPS)) {
+    standings[g] = teams.map(team => ({
+      team, played: 0, won: 0, drawn: 0, lost: 0,
+      gf: 0, ga: 0, gd: 0, pts: 0,
+    }));
+  }
+
+  for (const m of matches) {
+    if (m.round !== 'group' || !isFinished(m.status)) continue;
+    if (m.homeScore === null || m.awayScore === null) continue;
+    const g = findTeamGroup(m.homeTeam);
+    if (!g) continue;
+
+    const home = standings[g]?.find(e => e.team === m.homeTeam);
+    const away = standings[g]?.find(e => e.team === m.awayTeam);
+    if (!home || !away) continue;
+
+    home.played++; away.played++;
+    home.gf += m.homeScore; home.ga += m.awayScore;
+    away.gf += m.awayScore; away.ga += m.homeScore;
+
+    if (m.homeScore > m.awayScore) {
+      home.won++; home.pts += 3; away.lost++;
+    } else if (m.homeScore < m.awayScore) {
+      away.won++; away.pts += 3; home.lost++;
+    } else {
+      home.drawn++; home.pts++; away.drawn++; away.pts++;
+    }
+  }
+
+  for (const g of Object.keys(standings)) {
+    for (const e of standings[g]) e.gd = e.gf - e.ga;
+    standings[g].sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
+  }
+  return standings;
+}
+
 // ── Scoring engine (orchestrator) ─────────────────────────────────────────────
 
 class ScoringEngine {
@@ -664,6 +738,7 @@ class ScoringEngine {
 
     this._updateHeader();
     this._renderSchedule();
+    this._renderGroups();
     this._renderLeaderboard();
   }
 
@@ -755,6 +830,97 @@ class ScoringEngine {
 
     container.innerHTML = '';
     container.appendChild(frag);
+  }
+
+  _renderGroups() {
+    const container = document.getElementById('groups-container');
+    if (!container) return;
+
+    const standings = computeGroupStandings(this._matches);
+    const advanced  = determineAdvancedTeams(this._matches, null);
+
+    // A group is complete when all 6 of its matches are finished
+    const groupComplete = {};
+    for (const g of Object.keys(GROUPS)) {
+      const done = this._matches.filter(m =>
+        m.round === 'group' && isFinished(m.status) &&
+        (findTeamGroup(m.homeTeam) === g || findTeamGroup(m.awayTeam) === g)
+      ).length;
+      groupComplete[g] = done >= 6;
+    }
+
+    const grid = document.createElement('div');
+    grid.className = 'groups-grid';
+
+    for (const groupLetter of Object.keys(GROUPS).sort()) {
+      const card = document.createElement('div');
+      card.className = 'group-card';
+
+      const hdr = document.createElement('div');
+      hdr.className = 'group-card-header';
+      hdr.textContent = `Group ${groupLetter}`;
+      card.appendChild(hdr);
+
+      const tbl = document.createElement('table');
+      tbl.className = 'group-table';
+      tbl.innerHTML = `<thead><tr>
+        <th class="gt-pos">#</th>
+        <th class="gt-team">Team</th>
+        <th class="gt-stat">P</th>
+        <th class="gt-stat">W</th>
+        <th class="gt-stat">D</th>
+        <th class="gt-stat">L</th>
+        <th class="gt-stat gt-pts">Pts</th>
+      </tr></thead>`;
+      const tbody = document.createElement('tbody');
+
+      standings[groupLetter].forEach((entry, i) => {
+        const owner = TEAM_OWNER[entry.team];
+        const color = owner ? OWNER_COLORS[owner] : null;
+        const flag  = TEAM_FLAGS[entry.team] || '';
+        const isAdv  = advanced.has(entry.team);
+        const isElim = groupComplete[groupLetter] && !isAdv && i === 3;
+        const badge  = isAdv ? ' ✅' : isElim ? ' ❌' : '';
+
+        const tr = document.createElement('tr');
+        tr.className = 'group-row';
+        if (color) {
+          const r = parseInt(color.slice(1,3), 16);
+          const g = parseInt(color.slice(3,5), 16);
+          const b = parseInt(color.slice(5,7), 16);
+          tr.style.borderLeft = `3px solid ${color}`;
+          tr.style.background = `rgba(${r},${g},${b},0.07)`;
+        }
+
+        const ownerHtml = owner
+          ? `<span class="owner-badge" style="color:${color}">${owner}</span>`
+          : '';
+
+        tr.innerHTML = `
+          <td class="gt-pos">${i + 1}</td>
+          <td class="gt-team">
+            <div class="gt-team-inner">
+              <span class="gt-flag">${flag}</span>
+              <span class="gt-tname">${entry.team}${badge}</span>
+              ${ownerHtml}
+            </div>
+          </td>
+          <td class="gt-stat">${entry.played}</td>
+          <td class="gt-stat">${entry.won}</td>
+          <td class="gt-stat">${entry.drawn}</td>
+          <td class="gt-stat">${entry.lost}</td>
+          <td class="gt-stat gt-pts">${entry.pts}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      tbl.appendChild(tbody);
+      card.appendChild(tbl);
+      grid.appendChild(card);
+    }
+
+    container.innerHTML = '';
+    container.appendChild(grid);
   }
 
   _renderLeaderboard() {

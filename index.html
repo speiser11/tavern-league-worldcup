@@ -32,6 +32,10 @@
               role="tab" aria-selected="false" aria-controls="panel-schedule">
         📅 Schedule
       </button>
+      <button class="tab-btn" data-tab="groups"
+              role="tab" aria-selected="false" aria-controls="panel-groups">
+        🗂 Groups
+      </button>
       <button class="tab-btn" data-tab="rules"
               role="tab" aria-selected="false" aria-controls="panel-rules">
         📖 Rules
@@ -56,6 +60,12 @@
     <div class="tab-panel hidden" id="panel-schedule" role="tabpanel">
       <div id="schedule-container">
         <p class="state-msg">Loading schedule…</p>
+      </div>
+    </div>
+
+    <div class="tab-panel hidden" id="panel-groups" role="tabpanel">
+      <div id="groups-container">
+        <p class="state-msg">Loading groups…</p>
       </div>
     </div>
 
