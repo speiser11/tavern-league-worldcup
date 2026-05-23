@@ -1160,3 +1160,147 @@ a:hover { color: var(--red); }
 .group-row.is-eliminated .gt-pts {
   color: var(--text-3);
 }
+
+/* ── Activity feed ────────────────────────────────────────────────────────── */
+
+#panel-feed {
+  padding: 0.75rem;
+}
+
+.feed-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+  transition: box-shadow 0.15s;
+}
+
+.feed-item:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,.1);
+}
+
+.feed-item-champion {
+  border-width: 1px 1px 1px 4px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.12);
+}
+
+.feed-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.feed-flag {
+  font-size: 1.75rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.feed-center {
+  flex: 1;
+  min-width: 0;
+}
+
+.feed-event-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.feed-team-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-1);
+  white-space: nowrap;
+}
+
+.feed-event-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.feed-result {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.feed-result-team {
+  font-size: 0.75rem;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.feed-result-score {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  color: var(--text-1);
+  padding: 0 0.15rem;
+}
+
+.feed-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  gap: 0.15rem;
+  min-width: 3.5rem;
+}
+
+.feed-pts {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--text-1);
+}
+
+.feed-item-champion .feed-pts {
+  color: var(--red);
+}
+
+.feed-owner {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.feed-date {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.feed-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-2);
+}
+
+.feed-empty-icon {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.feed-empty p {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+  color: var(--text-1);
+}
+
+.feed-empty-sub {
+  font-size: 0.82rem;
+  color: var(--text-3);
+  font-weight: 400 !important;
+}

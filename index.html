@@ -28,6 +28,10 @@
               role="tab" aria-selected="true" aria-controls="panel-leaderboard">
         🏆 Leaderboard
       </button>
+      <button class="tab-btn" data-tab="feed"
+              role="tab" aria-selected="false" aria-controls="panel-feed">
+        📣 Feed
+      </button>
       <button class="tab-btn" data-tab="schedule"
               role="tab" aria-selected="false" aria-controls="panel-schedule">
         📅 Schedule
@@ -54,6 +58,12 @@
       </div>
       <div id="leaderboard-container">
         <p class="state-msg">Loading leaderboard…</p>
+      </div>
+    </div>
+
+    <div class="tab-panel hidden" id="panel-feed" role="tabpanel">
+      <div id="feed-container">
+        <p class="state-msg">Loading feed…</p>
       </div>
     </div>
 

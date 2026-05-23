@@ -736,6 +736,7 @@ class ScoringEngine {
     this._updateHeader();
     this._renderSchedule();
     this._renderGroups();
+    this._renderFeed();
     this._renderLeaderboard();
   }
 
@@ -920,6 +921,29 @@ class ScoringEngine {
     container.appendChild(grid);
   }
 
+  _renderFeed() {
+    const container = document.getElementById('feed-container');
+    if (!container) return;
+
+    const feed = buildActivityFeed(this._matches);
+    if (!feed.length) {
+      container.innerHTML = `
+        <div class="feed-empty">
+          <span class="feed-empty-icon">⚽</span>
+          <p>The tournament begins June 11.</p>
+          <p class="feed-empty-sub">Check back here for live scoring updates.</p>
+        </div>`;
+      return;
+    }
+
+    const frag = document.createDocumentFragment();
+    for (const item of feed) {
+      frag.appendChild(_buildFeedItem(item));
+    }
+    container.innerHTML = '';
+    container.appendChild(frag);
+  }
+
   _renderLeaderboard() {
     renderLeaderboard(calculateScores(this._matches, this._standings), this._matches);
   }
@@ -968,4 +992,155 @@ function _buildMatchRow(m) {
     <span class="sched-status">${statusLabel}</span>
   `;
   return row;
+}
+
+// ── Activity feed ──────────────────────────────────────────────────────────────
+
+const FEED_EVENT_LABELS = {
+  group_win:    'Group stage win',
+  group_draw:   'Group stage draw',
+  group_advance:'Advanced from group',
+  round_of_32:  'Round of 32 win',
+  round_of_16:  'Round of 16 win',
+  quarterfinal: 'Quarterfinal win',
+  semifinal:    'Semifinal win',
+  champion:     'Won the World Cup',
+};
+
+/**
+ * Build an activity feed from all completed scoring events across all participants.
+ * Returns array of feed items sorted newest-first.
+ *
+ * Each item: { date, owner, team, event, pts, matchResult, homeTeam, awayTeam,
+ *              homeScore, awayScore, matchId }
+ */
+function buildActivityFeed(matches) {
+  const advancedTeams = determineAdvancedTeams(matches, null);
+  const feed = [];
+
+  // Track per-team advance bonus so we emit it exactly once
+  const advanceBonusEmitted = new Set();
+
+  const finished = matches
+    .filter(m => isFinished(m.status))
+    .slice()
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  for (const m of finished) {
+    // Check both sides for owned teams
+    for (const teamName of [m.homeTeam, m.awayTeam]) {
+      const owner = TEAM_OWNER[teamName];
+      if (!owner) continue;
+
+      const isHome   = m.homeTeam === teamName;
+      const teamScore = isHome ? m.homeScore : m.awayScore;
+      const oppScore  = isHome ? m.awayScore : m.homeScore;
+      const won  = teamScore > oppScore;
+      const drew = teamScore === oppScore;
+      const isTierB = !TIER_A.has(teamName);
+
+      // Emit advance bonus on first knockout match appearance
+      if (m.round !== 'group' && !advanceBonusEmitted.has(teamName) && advancedTeams.has(teamName)) {
+        advanceBonusEmitted.add(teamName);
+        feed.push({
+          date:      m.date,
+          owner,
+          team:      teamName,
+          event:     'group_advance',
+          pts:       SCORING.group_advance,
+          homeTeam:  m.homeTeam,
+          awayTeam:  m.awayTeam,
+          homeScore: m.homeScore,
+          awayScore: m.awayScore,
+          matchId:   null,
+        });
+      }
+
+      let pts = 0, event = '';
+      if (m.round === 'group') {
+        if (won) {
+          pts   = SCORING.group_win + (isTierB ? SCORING.group_win_bonus : 0);
+          event = 'group_win';
+        } else if (drew) {
+          pts   = SCORING.group_draw;
+          event = 'group_draw';
+        }
+      } else if (won) {
+        const key = ROUND_SCORE_KEY[m.round];
+        if (key) { pts = SCORING[key]; event = key; }
+      }
+
+      if (pts > 0) {
+        feed.push({
+          date:      m.date,
+          owner,
+          team:      teamName,
+          event,
+          pts,
+          homeTeam:  m.homeTeam,
+          awayTeam:  m.awayTeam,
+          homeScore: m.homeScore,
+          awayScore: m.awayScore,
+          matchId:   m.matchId,
+        });
+      }
+    }
+  }
+
+  // Newest first
+  feed.sort((a, b) => new Date(b.date) - new Date(a.date));
+  return feed;
+}
+
+function _buildFeedItem(item) {
+  const color     = OWNER_COLORS[item.owner] || '#8090b8';
+  const flag      = TEAM_FLAGS[item.team] || '';
+  const label     = FEED_EVENT_LABELS[item.event] || item.event;
+  const isAdvance = item.event === 'group_advance';
+  const isChamp   = item.event === 'champion';
+
+  const d       = new Date(item.date);
+  const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  const timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+  // Match result line — not shown for advance bonus (no specific match)
+  let resultHtml = '';
+  if (!isAdvance && item.homeScore !== null) {
+    const homeFlag = TEAM_FLAGS[item.homeTeam] || '';
+    const awayFlag = TEAM_FLAGS[item.awayTeam] || '';
+    resultHtml = `
+      <div class="feed-result">
+        <span class="feed-result-team">${homeFlag} ${escHtml(item.homeTeam)}</span>
+        <span class="feed-result-score">${item.homeScore}–${item.awayScore}</span>
+        <span class="feed-result-team">${awayFlag} ${escHtml(item.awayTeam)}</span>
+      </div>`;
+  }
+
+  const el = document.createElement('div');
+  el.className = `feed-item${isChamp ? ' feed-item-champion' : ''}`;
+
+  const r = parseInt(color.slice(1,3), 16);
+  const g = parseInt(color.slice(3,5), 16);
+  const b = parseInt(color.slice(5,7), 16);
+  el.style.borderLeftColor = color;
+  el.style.background = `rgba(${r},${g},${b},0.06)`;
+
+  el.innerHTML = `
+    <div class="feed-top">
+      <span class="feed-flag">${flag}</span>
+      <div class="feed-center">
+        <div class="feed-event-row">
+          <span class="feed-team-name">${escHtml(item.team)}</span>
+          <span class="feed-event-label">${escHtml(label)}</span>
+        </div>
+        ${resultHtml}
+      </div>
+      <div class="feed-right">
+        <span class="feed-pts">+${item.pts}</span>
+        <span class="feed-owner" style="color:${color}">${escHtml(item.owner)}</span>
+        <span class="feed-date">${dateStr} · ${timeStr}</span>
+      </div>
+    </div>
+  `;
+  return el;
 }
