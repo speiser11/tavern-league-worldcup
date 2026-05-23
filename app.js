@@ -264,7 +264,8 @@ class DataLayer {
       const parsed = this.parseResults(json.events || []);
       this.source  = 'live';
       this._lsWrite(LS_MATCHES_KEY, parsed);
-      this._writeGistCache(parsed).catch(console.warn);
+      // Only write to Gist when we have real data (keeps it as a fallback for other devices)
+      if (parsed.length) this._writeGistCache(parsed).catch(() => {});
       return parsed;
     } catch (err) {
       console.warn('fetchMatches ESPN error:', err.message);
@@ -376,7 +377,7 @@ class DataLayer {
 
   _gistHeaders() {
     const h = { Accept: 'application/vnd.github+json' };
-    if (CONFIG.GIST_PAT) h['Authorization'] = `Bearer ${CONFIG.GIST_PAT}`;
+    if (CONFIG.GIST_PAT) h['Authorization'] = `token ${CONFIG.GIST_PAT}`;
     return h;
   }
 
