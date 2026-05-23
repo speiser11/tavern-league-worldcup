@@ -32,6 +32,10 @@
               role="tab" aria-selected="false" aria-controls="panel-schedule">
         📅 Schedule
       </button>
+      <button class="tab-btn" data-tab="rules"
+              role="tab" aria-selected="false" aria-controls="panel-rules">
+        📖 Rules
+      </button>
     </nav>
   </header>
 
@@ -55,12 +59,114 @@
       </div>
     </div>
 
+    <div class="tab-panel hidden" id="panel-rules" role="tabpanel">
+      <div class="rules-grid">
+
+        <div class="rules-card">
+          <div class="rules-card-header">
+            <span class="rules-icon">👥</span>
+            <h2 class="rules-card-title">Participants &amp; Teams</h2>
+          </div>
+          <p class="rules-body">Each of the 14 participants was assigned two national teams. Points are earned based on how your teams perform throughout the tournament.</p>
+        </div>
+
+        <div class="rules-card">
+          <div class="rules-card-header">
+            <span class="rules-icon">⚽</span>
+            <h2 class="rules-card-title">Scoring</h2>
+          </div>
+          <div class="rules-section-label">Group Stage</div>
+          <div class="rules-score-list">
+            <div class="rules-score-row">
+              <span class="rules-score-event">Win</span>
+              <span class="rules-score-pts pts-blue">2 pts <span class="rules-score-note">+ tier bonus</span></span>
+            </div>
+            <div class="rules-score-row">
+              <span class="rules-score-event">Draw</span>
+              <span class="rules-score-pts pts-blue">1 pt</span>
+            </div>
+            <div class="rules-score-row">
+              <span class="rules-score-event">Advance from group</span>
+              <span class="rules-score-pts pts-blue">3 pts</span>
+            </div>
+          </div>
+          <div class="rules-divider"></div>
+          <div class="rules-section-label">Knockout Rounds</div>
+          <div class="rules-score-list">
+            <div class="rules-score-row">
+              <span class="rules-score-event">Round of 32 win</span>
+              <span class="rules-score-pts pts-red">4 pts</span>
+            </div>
+            <div class="rules-score-row">
+              <span class="rules-score-event">Round of 16 win</span>
+              <span class="rules-score-pts pts-red">6 pts</span>
+            </div>
+            <div class="rules-score-row">
+              <span class="rules-score-event">Quarterfinal win</span>
+              <span class="rules-score-pts pts-red">8 pts</span>
+            </div>
+            <div class="rules-score-row">
+              <span class="rules-score-event">Semifinal win</span>
+              <span class="rules-score-pts pts-red">10 pts</span>
+            </div>
+            <div class="rules-score-row">
+              <span class="rules-score-event">Championship win</span>
+              <span class="rules-score-pts pts-champion">15 pts</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="rules-card">
+          <div class="rules-card-header">
+            <span class="rules-icon">🏅</span>
+            <h2 class="rules-card-title">Tier System</h2>
+          </div>
+          <div class="rules-tier rules-tier-a">
+            <div class="rules-tier-label">Tier A — No bonus</div>
+            <div class="rules-tier-desc">Top favorites receive no win bonus — just base points.</div>
+            <div class="rules-tier-teams">
+              <span class="rules-team-chip">🇪🇸 Spain</span>
+              <span class="rules-team-chip">🇫🇷 France</span>
+              <span class="rules-team-chip">🏴󠁧󠁢󠁥󠁮󠁧󠁿 England</span>
+              <span class="rules-team-chip">🇧🇷 Brazil</span>
+              <span class="rules-team-chip">🇦🇷 Argentina</span>
+              <span class="rules-team-chip">🇵🇹 Portugal</span>
+              <span class="rules-team-chip">🇩🇪 Germany</span>
+              <span class="rules-team-chip">🇳🇱 Netherlands</span>
+            </div>
+          </div>
+          <div class="rules-divider"></div>
+          <div class="rules-tier rules-tier-b">
+            <div class="rules-tier-label">Tier B — +2 per win</div>
+            <div class="rules-tier-desc">All remaining teams earn an extra +2 bonus on top of base win points (4 pts total per group stage win).</div>
+          </div>
+        </div>
+
+        <div class="rules-card">
+          <div class="rules-card-header">
+            <span class="rules-icon">⚖️</span>
+            <h2 class="rules-card-title">Tiebreakers</h2>
+          </div>
+          <p class="rules-body">Ties are broken by total wins. If still tied, the participant whose highest-seeded team advanced furthest wins.</p>
+        </div>
+
+        <div class="rules-card">
+          <div class="rules-card-header">
+            <span class="rules-icon">🏈</span>
+            <h2 class="rules-card-title">Fantasy Football Draft</h2>
+          </div>
+          <p class="rules-body">Final standings determine fantasy football draft order. Highest score earns the best draft pick.</p>
+        </div>
+
+      </div>
+    </div>
+
   </main>
 
   <footer class="site-footer">
     <span id="refresh-countdown" class="countdown-text"></span>
     <span class="footer-sep">·</span>
-    <span>Data: <a href="https://www.api-football.com/" target="_blank" rel="noopener">API-Football</a></span>
+    <span>Data: <a href="https://www.espn.com/" target="_blank" rel="noopener">ESPN</a></span>
   </footer>
 
   <script src="config.js"></script>
