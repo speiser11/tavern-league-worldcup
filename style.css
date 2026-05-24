@@ -1894,20 +1894,8 @@ a:hover { color: var(--red); }
   .lb-score { font-size: 1.25rem; }
   .lb-teams-text { font-size: 0.8rem; }
 
-  /* Always show breakdown on desktop */
-  .lb-breakdown {
-    max-height: none !important;
-    opacity: 1 !important;
-    overflow: visible !important;
-    border-top-width: 1px !important;
-    padding: 0.75rem !important;
-  }
-
-  /* Hide expand toggle on desktop */
-  .lb-toggle { display: none; }
-
-  /* Breakdown: side-by-side teams */
-  .bd-inner { flex-direction: row; gap: 1rem; }
+  /* Breakdown: side-by-side teams when expanded */
+  .lb-entry.is-expanded .bd-inner { flex-direction: row; gap: 1rem; }
 
   /* Group cards: more padding */
   .group-card { padding: 0.75rem; }

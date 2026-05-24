@@ -169,9 +169,6 @@ function _buildEntry(entry) {
 // ── Expand / collapse ──────────────────────────────────────────────────────────
 
 function _toggleEntry(wrap, entry) {
-  // On desktop the breakdown is always visible via CSS — nothing to do
-  if (window.innerWidth >= 768) return;
-
   const isExpanding = !wrap.classList.contains('is-expanded');
   const bd  = wrap.querySelector('.lb-breakdown');
   const btn = wrap.querySelector('.lb-toggle');
