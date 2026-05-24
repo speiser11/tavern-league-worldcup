@@ -145,6 +145,7 @@ function _buildEntry(entry) {
       </div>
       <button class="lb-toggle" aria-expanded="false"
               aria-label="Show score breakdown for ${escHtml(entry.name)}">›</button>
+      <span class="lb-expand-hint" aria-hidden="true">▼ details</span>
     </div>
     <div class="lb-breakdown" aria-hidden="true">${breakdownHtml}</div>
   `;
@@ -170,12 +171,14 @@ function _buildEntry(entry) {
 
 function _toggleEntry(wrap, entry) {
   const isExpanding = !wrap.classList.contains('is-expanded');
-  const bd  = wrap.querySelector('.lb-breakdown');
-  const btn = wrap.querySelector('.lb-toggle');
+  const bd   = wrap.querySelector('.lb-breakdown');
+  const btn  = wrap.querySelector('.lb-toggle');
+  const hint = wrap.querySelector('.lb-expand-hint');
 
   wrap.classList.toggle('is-expanded', isExpanding);
   btn.setAttribute('aria-expanded', String(isExpanding));
   bd.setAttribute('aria-hidden', String(!isExpanding));
+  if (hint) hint.textContent = isExpanding ? '▲ details' : '▼ details';
 }
 
 // ── Breakdown HTML ─────────────────────────────────────────────────────────────
