@@ -1035,7 +1035,7 @@ a:hover { color: var(--red); }
   .groups-grid { grid-template-columns: 1fr 1fr; }
 }
 
-@media (min-width: 900px) {
+@media (min-width: 768px) {
   .groups-grid { grid-template-columns: 1fr 1fr 1fr; }
 }
 
@@ -1556,6 +1556,19 @@ a:hover { color: var(--red); }
   font-weight: 400 !important;
 }
 
+/* ── Flag images (flagcdn.com) ────────────────────────────────────────────── */
+
+.flag-img {
+  width: 20px;
+  height: auto;
+  vertical-align: middle;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.flag-img-sm { width: 16px; }
+.flag-img-lg { width: 28px; }
+
 /* ── Notification bell & panel ────────────────────────────────────────────── */
 
 .notif-wrap {
@@ -1863,3 +1876,46 @@ a:hover { color: var(--red); }
 
 .notif-optin-allow { background: var(--blue); color: #fff; }
 .notif-optin-later { background: var(--bg-card-alt); color: var(--text-3); border: 1px solid var(--border); }
+
+/* ── Desktop layout (768px+) ─────────────────────────────────────────────── */
+
+@media (min-width: 768px) {
+  /* General spacing */
+  .site-main { padding: 1.25rem 1.5rem; }
+
+  /* Wider tab buttons */
+  .tab-btn { padding: 0.65rem 1.5rem; font-size: 0.85rem; }
+
+  /* Leaderboard col headers */
+  .lb-col-headers { font-size: 0.72rem; }
+
+  /* Leaderboard entries: slightly larger */
+  .lb-name  { font-size: 0.98rem; }
+  .lb-score { font-size: 1.25rem; }
+  .lb-teams-text { font-size: 0.8rem; }
+
+  /* Always show breakdown on desktop */
+  .lb-breakdown {
+    max-height: none !important;
+    opacity: 1 !important;
+    overflow: visible !important;
+    border-top-width: 1px !important;
+    padding: 0.75rem !important;
+  }
+
+  /* Hide expand toggle on desktop */
+  .lb-toggle { display: none; }
+
+  /* Breakdown: side-by-side teams */
+  .bd-inner { flex-direction: row; gap: 1rem; }
+
+  /* Group cards: more padding */
+  .group-card { padding: 0.75rem; }
+  .group-card-header { font-size: 0.85rem; margin-bottom: 0.5rem; }
+
+  /* Feed items: more breathing room */
+  .feed-item { padding: 0.85rem 1rem; }
+
+  /* Rules grid: 2-col */
+  .rules-grid { grid-template-columns: 1fr 1fr; }
+}

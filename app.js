@@ -158,6 +158,86 @@ const TEAM_FLAGS = {
   Panama:         '🇵🇦',
 };
 
+// ── Flag image URLs (flagcdn.com) ─────────────────────────────────────────────
+// Windows Chrome/Edge do not render regional-indicator emoji flags.
+// We use flagcdn.com images instead. TEAM_FLAGS kept for plain-text contexts
+// (push notification bodies, etc.).
+
+const FLAG_URLS = {
+  // Group A
+  Mexico:         'https://flagcdn.com/w40/mx.png',
+  'South Korea':  'https://flagcdn.com/w40/kr.png',
+  Czechia:        'https://flagcdn.com/w40/cz.png',
+  'South Africa': 'https://flagcdn.com/w40/za.png',
+  // Group B
+  Switzerland:    'https://flagcdn.com/w40/ch.png',
+  Canada:         'https://flagcdn.com/w40/ca.png',
+  Bosnia:         'https://flagcdn.com/w40/ba.png',
+  Qatar:          'https://flagcdn.com/w40/qa.png',
+  // Group C
+  Brazil:         'https://flagcdn.com/w40/br.png',
+  Morocco:        'https://flagcdn.com/w40/ma.png',
+  Haiti:          'https://flagcdn.com/w40/ht.png',
+  Scotland:       'https://flagcdn.com/w40/gb-sct.png',
+  // Group D
+  USA:            'https://flagcdn.com/w40/us.png',
+  Paraguay:       'https://flagcdn.com/w40/py.png',
+  Australia:      'https://flagcdn.com/w40/au.png',
+  Turkey:         'https://flagcdn.com/w40/tr.png',
+  // Group E
+  Germany:        'https://flagcdn.com/w40/de.png',
+  Ecuador:        'https://flagcdn.com/w40/ec.png',
+  'Ivory Coast':  'https://flagcdn.com/w40/ci.png',
+  Curacao:        'https://flagcdn.com/w40/cw.png',
+  // Group F
+  Netherlands:    'https://flagcdn.com/w40/nl.png',
+  Japan:          'https://flagcdn.com/w40/jp.png',
+  Sweden:         'https://flagcdn.com/w40/se.png',
+  Tunisia:        'https://flagcdn.com/w40/tn.png',
+  // Group G
+  Belgium:        'https://flagcdn.com/w40/be.png',
+  Egypt:          'https://flagcdn.com/w40/eg.png',
+  Iran:           'https://flagcdn.com/w40/ir.png',
+  'New Zealand':  'https://flagcdn.com/w40/nz.png',
+  // Group H
+  Spain:          'https://flagcdn.com/w40/es.png',
+  Uruguay:        'https://flagcdn.com/w40/uy.png',
+  'Saudi Arabia': 'https://flagcdn.com/w40/sa.png',
+  'Cape Verde':   'https://flagcdn.com/w40/cv.png',
+  // Group I
+  France:         'https://flagcdn.com/w40/fr.png',
+  Senegal:        'https://flagcdn.com/w40/sn.png',
+  Norway:         'https://flagcdn.com/w40/no.png',
+  Iraq:           'https://flagcdn.com/w40/iq.png',
+  // Group J
+  Argentina:      'https://flagcdn.com/w40/ar.png',
+  Austria:        'https://flagcdn.com/w40/at.png',
+  Algeria:        'https://flagcdn.com/w40/dz.png',
+  Jordan:         'https://flagcdn.com/w40/jo.png',
+  // Group K
+  Portugal:       'https://flagcdn.com/w40/pt.png',
+  Colombia:       'https://flagcdn.com/w40/co.png',
+  Congo:          'https://flagcdn.com/w40/cg.png',
+  Uzbekistan:     'https://flagcdn.com/w40/uz.png',
+  // Group L
+  England:        'https://flagcdn.com/w40/gb-eng.png',
+  Croatia:        'https://flagcdn.com/w40/hr.png',
+  Ghana:          'https://flagcdn.com/w40/gh.png',
+  Panama:         'https://flagcdn.com/w40/pa.png',
+};
+
+/**
+ * Returns an <img> tag for a team's flag.
+ * sizeClass: optional extra CSS class ('flag-img-sm' | 'flag-img-lg')
+ * Falls back to emoji string for unknown teams (bracket placeholders etc.)
+ */
+function flagImg(team, sizeClass) {
+  const url = FLAG_URLS[team];
+  if (!url) return TEAM_FLAGS[team] || '';
+  const cls = sizeClass ? `flag-img ${sizeClass}` : 'flag-img';
+  return `<img src="${url}" alt="${team}" class="${cls}" loading="lazy">`;
+}
+
 // ── Team name map ──────────────────────────────────────────────────────────────
 // API-Football name → our canonical name.
 // Only entries that differ need to be listed.
@@ -905,7 +985,7 @@ class ScoringEngine {
       standings[groupLetter].forEach((entry, i) => {
         const owner = TEAM_OWNER[entry.team];
         const color = owner ? OWNER_COLORS[owner] : null;
-        const flag  = TEAM_FLAGS[entry.team] || '';
+        const flag  = flagImg(entry.team);
         const isAdv  = advanced.has(entry.team);
         const isElim = groupComplete[groupLetter] && !isAdv && i === 3;
         const badge  = isAdv ? ' ✅' : isElim ? ' ❌' : '';
@@ -993,8 +1073,8 @@ class ScoringEngine {
 function _buildMatchRow(m) {
   const live     = isLive(m.status);
   const finished = isFinished(m.status);
-  const homeFlag = TEAM_FLAGS[m.homeTeam] || '';
-  const awayFlag = TEAM_FLAGS[m.awayTeam] || '';
+  const homeFlag = flagImg(m.homeTeam);
+  const awayFlag = flagImg(m.awayTeam);
 
   const d       = new Date(m.date);
   const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
@@ -1016,9 +1096,9 @@ function _buildMatchRow(m) {
   row.className = `sched-match${live ? ' is-live' : ''}${finished ? ' is-final' : ''}`;
   row.innerHTML = `
     <span class="sched-date">${dateStr}</span>
-    <span class="sched-team sched-home">${homeFlag ? `<span class="sched-flag">${homeFlag}</span>` : ''}<span class="sched-tname">${m.homeTeam}</span></span>
+    <span class="sched-team sched-home"><span class="sched-flag">${homeFlag}</span><span class="sched-tname">${m.homeTeam}</span></span>
     <span class="sched-center">${centerHtml}</span>
-    <span class="sched-team sched-away"><span class="sched-tname">${m.awayTeam}</span>${awayFlag ? `<span class="sched-flag">${awayFlag}</span>` : ''}</span>
+    <span class="sched-team sched-away"><span class="sched-tname">${m.awayTeam}</span><span class="sched-flag">${awayFlag}</span></span>
     <span class="sched-status">${statusLabel}</span>
   `;
   return row;
@@ -1073,8 +1153,8 @@ const LIVE_ROUND_LABELS = {
 };
 
 function _buildLiveBannerCard(m) {
-  const homeFlag = TEAM_FLAGS[m.homeTeam] || '';
-  const awayFlag = TEAM_FLAGS[m.awayTeam] || '';
+  const homeFlag = flagImg(m.homeTeam);
+  const awayFlag = flagImg(m.awayTeam);
 
   const elapsed = m.status === 'HT' ? 'HT'
                 : m.elapsed != null  ? `${m.elapsed}'`
@@ -1100,7 +1180,7 @@ function _buildLiveBannerCard(m) {
   }
 
   const ownerRowsHtml = ownerEntries.map(({ owner, teamName, pts, situation, color }) => {
-    const flag      = TEAM_FLAGS[teamName] || '';
+    const flag      = flagImg(teamName);
     const ptsTxt    = pts > 0 ? `+${pts} pts if ${situation === 'winning' ? 'lead holds' : 'score holds'}`
                               : 'no pts if score holds';
     const situClass = situation === 'winning' ? 'lbs-win' : situation === 'losing' ? 'lbs-lose' : 'lbs-draw';
@@ -1239,7 +1319,7 @@ function buildActivityFeed(matches) {
 
 function _buildFeedItem(item) {
   const color     = OWNER_COLORS[item.owner] || '#8090b8';
-  const flag      = TEAM_FLAGS[item.team] || '';
+  const flag      = flagImg(item.team);
   const label     = FEED_EVENT_LABELS[item.event] || item.event;
   const isAdvance = item.event === 'group_advance';
   const isChamp   = item.event === 'champion';
@@ -1251,13 +1331,13 @@ function _buildFeedItem(item) {
   // Match result line — not shown for advance bonus (no specific match)
   let resultHtml = '';
   if (!isAdvance && item.homeScore !== null) {
-    const homeFlag = TEAM_FLAGS[item.homeTeam] || '';
-    const awayFlag = TEAM_FLAGS[item.awayTeam] || '';
+    const homeFlag = flagImg(item.homeTeam);
+    const awayFlag = flagImg(item.awayTeam);
     resultHtml = `
       <div class="feed-result">
-        <span class="feed-result-team">${homeFlag} ${escHtml(item.homeTeam)}</span>
+        <span class="feed-result-team">${homeFlag}\u202f${escHtml(item.homeTeam)}</span>
         <span class="feed-result-score">${item.homeScore}–${item.awayScore}</span>
-        <span class="feed-result-team">${awayFlag} ${escHtml(item.awayTeam)}</span>
+        <span class="feed-result-team">${awayFlag}\u202f${escHtml(item.awayTeam)}</span>
       </div>`;
   }
 

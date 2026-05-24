@@ -74,8 +74,8 @@ function _buildBiggestMoverCard(entry) {
   const g = parseInt(color.slice(3,5), 16);
   const b = parseInt(color.slice(5,7), 16);
 
-  const teamsText = entry.teams
-    .map(t => `${(typeof TEAM_FLAGS !== 'undefined' && TEAM_FLAGS[t]) || ''}\u202f${t}`)
+  const teamsHtml = entry.teams
+    .map(t => `${flagImg(t)}\u202f${escHtml(t)}`)
     .join('  ·  ');
 
   const scoreLine = entry._scoreDelta > 0
@@ -91,7 +91,7 @@ function _buildBiggestMoverCard(entry) {
     <span class="bm-label">Biggest Mover</span>
     <span class="bm-delta">▲${entry._rankDelta}</span>
     <span class="bm-name">${escHtml(entry.name)}</span>
-    <span class="bm-teams">${escHtml(teamsText)}</span>
+    <span class="bm-teams">${teamsHtml}</span>
     ${scoreLine}
   `;
   return el;
@@ -116,14 +116,17 @@ function _buildEntry(entry) {
   else                     deltaHtml = `<span class="rank-delta delta-same">—</span>`;
 
   // Teams line
-  const teamsText = entry.teams
-    .map(t => `${TEAM_FLAGS[t] || ''}\u202f${t}`)
+  const teamsHtml = entry.teams
+    .map(t => `${flagImg(t)}\u202f${escHtml(t)}`)
     .join('  ·  ');
 
   // Conflict warning icon
   const conflictHtml = entry.flags?.length
     ? ` <span class="conflict-icon" title="${escHtml(entry.flags[0])}">⚠</span>`
     : '';
+
+  // Pre-render breakdown so it's available immediately on desktop
+  const breakdownHtml = _buildBreakdownHTML(entry);
 
   wrap.innerHTML = `
     <div class="lb-main">
@@ -135,7 +138,7 @@ function _buildEntry(entry) {
         <span class="lb-name">${escHtml(entry.name)}${conflictHtml}</span>
       </div>
       <div class="lb-teams-cell">
-        <span class="lb-teams-text">${escHtml(teamsText)}</span>
+        <span class="lb-teams-text">${teamsHtml}</span>
       </div>
       <div class="lb-score-cell">
         <span class="lb-score" data-score="${entry.totalScore}">${entry.totalScore}</span>
@@ -143,7 +146,7 @@ function _buildEntry(entry) {
       <button class="lb-toggle" aria-expanded="false"
               aria-label="Show score breakdown for ${escHtml(entry.name)}">›</button>
     </div>
-    <div class="lb-breakdown" aria-hidden="true"></div>
+    <div class="lb-breakdown" aria-hidden="true">${breakdownHtml}</div>
   `;
 
   // Animate score if it changed since last render
@@ -166,6 +169,9 @@ function _buildEntry(entry) {
 // ── Expand / collapse ──────────────────────────────────────────────────────────
 
 function _toggleEntry(wrap, entry) {
+  // On desktop the breakdown is always visible via CSS — nothing to do
+  if (window.innerWidth >= 768) return;
+
   const isExpanding = !wrap.classList.contains('is-expanded');
   const bd  = wrap.querySelector('.lb-breakdown');
   const btn = wrap.querySelector('.lb-toggle');
@@ -173,11 +179,6 @@ function _toggleEntry(wrap, entry) {
   wrap.classList.toggle('is-expanded', isExpanding);
   btn.setAttribute('aria-expanded', String(isExpanding));
   bd.setAttribute('aria-hidden', String(!isExpanding));
-
-  // Lazy-render breakdown content on first expand
-  if (isExpanding && !bd.innerHTML.trim()) {
-    bd.innerHTML = _buildBreakdownHTML(entry);
-  }
 }
 
 // ── Breakdown HTML ─────────────────────────────────────────────────────────────
@@ -185,7 +186,7 @@ function _toggleEntry(wrap, entry) {
 function _buildBreakdownHTML(entry) {
   const teamBlocks = entry.teams.map(teamName => {
     const td   = entry.teamBreakdown[teamName] ?? {};
-    const flag = TEAM_FLAGS[teamName] || '';
+    const flag = flagImg(teamName);
     const tier = TIER_A.has(teamName) ? 'Tier A' : 'Tier B';
 
     // Stat chips
@@ -211,7 +212,7 @@ function _buildBreakdownHTML(entry) {
     if (upcoming.length) {
       const rows = upcoming.map(m => {
         const opp      = m.homeTeam === teamName ? m.awayTeam : m.homeTeam;
-        const oppFlag  = TEAM_FLAGS[opp] || '';
+        const oppFlag  = flagImg(opp);
         const dateStr  = new Date(m.date).toLocaleDateString([], { month: 'short', day: 'numeric' });
         const timeStr  = new Date(m.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         const isHome   = m.homeTeam === teamName;
