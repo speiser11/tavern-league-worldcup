@@ -1112,7 +1112,11 @@ a:hover { color: var(--red); }
   font-size: 0.78rem;
   color: var(--text-1);
   font-weight: 500;
+  white-space: nowrap;
 }
+
+/* Short team summary — hidden on desktop, shown on mobile */
+.sc-teams-short { display: none; }
 
 .sc-pts {
   font-family: var(--font-display);
@@ -1143,22 +1147,43 @@ a:hover { color: var(--red); }
   align-self: stretch;
 }
 
-/* Narrow screens: shrink fonts instead of wrapping */
-@media (max-width: 380px) {
-  .sc-col          { padding: 0.65rem 0.65rem; }
-  .sc-col-head     { font-size: 1rem; }
-  .sc-evt          { font-size: 0.68rem; }
-  .sc-pts          { font-size: 0.8rem; }
-  .sc-teams-list   { font-size: 0.6rem; }
-  .sc-section-lbl  { font-size: 0.5rem; }
-}
-@media (max-width: 340px) {
-  .sc-col          { padding: 0.5rem 0.5rem; }
-  .sc-col-head     { font-size: 14px; }
-  .sc-evt          { font-size: 11px; }
-  .sc-pts          { font-size: 12px; }
-  .sc-teams-list   { font-size: 10px; }
-  .sc-section-lbl  { font-size: 9px; }
+/* Mobile scoring card — applied at ≤480px, desktop layout untouched above this */
+@media (max-width: 480px) {
+  /* Header tightening */
+  .sc-header { padding: 10px 10px 8px; }
+
+  /* Column padding */
+  .sc-col { padding: 8px 6px; }
+
+  /* Column headers */
+  .sc-col-head { font-size: 13px; font-weight: 700; letter-spacing: 0.03em; }
+
+  /* Hide full team list; show short label instead */
+  .sc-teams-list  { display: none; }
+  .sc-teams-short {
+    display: block;
+    font-size: 9px;
+    color: var(--text-3);
+    margin-bottom: 6px;
+    line-height: 1.4;
+  }
+
+  /* Section labels */
+  .sc-section-lbl { font-size: 9px; margin-bottom: 3px; }
+
+  /* All text in scoring rows */
+  .sc-evt { font-size: 10px; }
+  .sc-pts { font-size: 10px; }
+
+  /* Row spacing */
+  .sc-row { padding: 3px 0; gap: 4px; }
+  .sc-row-champ { padding: 3px 4px; margin: 2px -4px 0; }
+
+  /* Horizontal dividers */
+  .sc-hdivider { margin: 5px 0; }
+
+  /* Vertical divider: 20% opacity on mobile */
+  .sc-vdivider { opacity: 0.2; }
 }
 
 .rules-team-chip {
