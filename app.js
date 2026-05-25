@@ -646,8 +646,8 @@ function _scoreTeam(teamName, matches, advancedTeams, groupWinners) {
       if (key) knockoutPts += tier[key];
     }
 
-    // Giant Killer: Tier B team beats a Tier A team (any round)
-    if (won && tier.giant_killer && TIER_A.has(oppTeam)) {
+    // Giant Killer: Tier B team beats a Tier A team in the group stage
+    if (m.round === 'group' && won && tier.giant_killer && TIER_A.has(oppTeam)) {
       giantKillerPts += tier.giant_killer;
     }
   }
@@ -722,9 +722,9 @@ function _buildScoreHistory(teamNames, matches, advancedTeams, groupWinners) {
         events.push({ date: m.date, matchId: m.matchId, team: teamName, event, pts, runningTotal: running });
       }
 
-      // Giant Killer bonus
+      // Giant Killer bonus (group stage only)
       const oppTeam = m.homeTeam === teamName ? m.awayTeam : m.homeTeam;
-      if (won && tier.giant_killer && TIER_A.has(oppTeam)) {
+      if (m.round === 'group' && won && tier.giant_killer && TIER_A.has(oppTeam)) {
         running += tier.giant_killer;
         events.push({ date: m.date, matchId: m.matchId, team: teamName,
           event: 'giant_killer', pts: tier.giant_killer, runningTotal: running });
@@ -1190,7 +1190,7 @@ function _potentialMatchPts(match, teamName) {
   const tier    = scoringFor(teamName);
 
   const oppTeam = match.homeTeam === teamName ? match.awayTeam : match.homeTeam;
-  const gkBonus = (winning && tier.giant_killer && TIER_A.has(oppTeam)) ? tier.giant_killer : 0;
+  const gkBonus = (match.round === 'group' && winning && tier.giant_killer && TIER_A.has(oppTeam)) ? tier.giant_killer : 0;
 
   if (match.round === 'group') {
     if (winning) return tier.group_win + gkBonus;
@@ -1374,9 +1374,9 @@ function buildActivityFeed(matches) {
         });
       }
 
-      // Giant Killer bonus
+      // Giant Killer bonus (group stage only)
       const oppTeam = m.homeTeam === teamName ? m.awayTeam : m.homeTeam;
-      if (won && tier.giant_killer && TIER_A.has(oppTeam)) {
+      if (m.round === 'group' && won && tier.giant_killer && TIER_A.has(oppTeam)) {
         feed.push({
           date: m.date, owner, team: teamName, event: 'giant_killer', pts: tier.giant_killer,
           homeTeam: m.homeTeam, awayTeam: m.awayTeam,
