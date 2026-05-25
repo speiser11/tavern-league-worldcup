@@ -120,6 +120,29 @@ a:hover { color: var(--red); }
   line-height: 1;
 }
 
+@media (max-width: 768px) {
+  .header-inner {
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    padding: 0.5rem 0.75rem 0.4rem;
+  }
+  .header-left {
+    min-width: 0;
+    overflow: hidden;
+    flex-shrink: 1;
+  }
+  .site-title {
+    max-width: 100%;
+    overflow: hidden;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+  }
+  .site-title-sup { font-size: 0.5rem; }
+  .site-title-main { font-size: 1.1rem; white-space: normal; }
+}
+
 .round-badge {
   font-family: var(--font-mono);
   font-size: 0.6rem;
