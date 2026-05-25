@@ -43,7 +43,7 @@ const CONFIG = {
   ADMIN_PASSWORD: "YOUR_ADMIN_PASSWORD_HERE",
 
   // Display name shown in the leaderboard header
-  APP_TITLE: "2026 World Cup Fantasy",
+  APP_TITLE: "Joner Games Presents: 2026 #ELITE World Cup Draft Competition",
 
   // Your GitHub Pages URL once deployed, e.g.:
   // "https://loganthein.github.io/worldcup-fantasy"

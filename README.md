@@ -1,6 +1,6 @@
-# 2026 World Cup Fantasy
+# Joner Games Presents: 2026 #ELITE World Cup Draft Competition
 
-Live fantasy leaderboard for the 2026 FIFA World Cup. Each participant picks two national teams; points are earned from group-stage results, advancement, and knockout wins. No frameworks, no build step — pure HTML/CSS/JS deployed to GitHub Pages.
+Live fantasy leaderboard for the 2026 #ELITE World Cup Draft Competition. Each participant picks two national teams; points are earned from group-stage results, advancement, and knockout wins. No frameworks, no build step — pure HTML/CSS/JS deployed to GitHub Pages.
 
 **Live site:** https://loganthein.github.io/worldcup-elite-fantasy/
 
