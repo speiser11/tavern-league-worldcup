@@ -323,14 +323,17 @@ function initCountdown() {
           <span class="tcd-num" id="tcd-d">--</span>
           <span class="tcd-lbl">Days</span>
         </div>
+        <span class="tcd-sep">:</span>
         <div class="tcd-block tcd-hours">
           <span class="tcd-num" id="tcd-h">--</span>
           <span class="tcd-lbl">Hours</span>
         </div>
+        <span class="tcd-sep">:</span>
         <div class="tcd-block tcd-mins">
           <span class="tcd-num" id="tcd-m">--</span>
           <span class="tcd-lbl">Min</span>
         </div>
+        <span class="tcd-sep">:</span>
         <div class="tcd-block tcd-secs">
           <span class="tcd-num" id="tcd-s">--</span>
           <span class="tcd-lbl">Sec</span>
@@ -341,12 +344,10 @@ function initCountdown() {
   `;
   banner.hidden = false;
 
-  const wrap      = banner.querySelector('.tcd-wrap');
-  const secsBlock = banner.querySelector('.tcd-secs');
-  const dEl       = document.getElementById('tcd-d');
-  const hEl       = document.getElementById('tcd-h');
-  const mEl       = document.getElementById('tcd-m');
-  const sEl       = document.getElementById('tcd-s');
+  const dEl = document.getElementById('tcd-d');
+  const hEl = document.getElementById('tcd-h');
+  const mEl = document.getElementById('tcd-m');
+  const sEl = document.getElementById('tcd-s');
 
   let timer;
 
@@ -362,14 +363,6 @@ function initCountdown() {
     hEl.textContent = String(Math.floor((ms % 86400000) / 3600000)).padStart(2, '0');
     mEl.textContent = String(Math.floor((ms % 3600000)  / 60000)).padStart(2, '0');
     sEl.textContent = String(Math.floor((ms % 60000)    / 1000)).padStart(2, '0');
-
-    // Toggle urgency state (under 24 hours)
-    wrap.classList.toggle('tcd-urgent', ms < 86400000);
-
-    // Restart glow animation on seconds block each tick
-    secsBlock.classList.remove('tcd-tick');
-    void secsBlock.offsetWidth; // force reflow so animation replays
-    secsBlock.classList.add('tcd-tick');
   }
 
   tick();
