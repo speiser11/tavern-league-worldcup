@@ -15,7 +15,7 @@
 const PARTICIPANTS = {
   Ashleigh: ['Brazil',      'Canada'],
   Baker:    ['Germany',     'Croatia'],
-  Chad:     ['Japan',       'Paraguay'],
+  Chad:     ['Japan',       'Egypt'],
   Jackie:   ['Morocco',     'Sweden'],
   Jake:     ['Argentina',   'Australia'],
   Joren:    ['Norway',      'Scotland'],
