@@ -13,45 +13,48 @@
 // name → [team1, team2]
 
 const PARTICIPANTS = {
-  Ashleigh: ['Brazil',      'Canada'],
-  Baker:    ['Germany',     'Croatia'],
-  Chad:     ['Japan',       'Egypt'],
-  Jackie:   ['Morocco',     'Sweden'],
-  Jake:     ['Argentina',   'Australia'],
-  Joren:    ['Norway',      'Scotland'],
-  Keillor:  ['France',      'Uruguay'],
-  Kyle:     ['England',     'Senegal'],
-  Logan:    ['USA',         'Switzerland'],
-  Patrick:  ['Portugal',    'Austria'],
-  Sara:     ['Spain',       'Mexico'],
-  TJ:       ['Colombia',    'Turkey'],
-  'Tom Moran': ['Belgium',  'South Korea'],
-  Goon:     ['Netherlands', 'Ecuador'],
+  'Kade':         [],
+  'Zach':         [],
+  'Konrad':       [],
+  'Cody (Left)':  [],
+  'Cody (Right)': [],
+  'Scott':        [],
+  'Brandon':      [],
+  'Allan':        [],
 };
 
 // ── Owner → color map ─────────────────────────────────────────────────────────
 
 const OWNER_COLORS = {
-  'Ashleigh':  '#ec4899',
-  'Baker':     '#0d9488',
-  'Chad':      '#f97316',
-  'Jackie':    '#a855f7',
-  'Jake':      '#2563eb',
-  'Joren':     '#16a34a',
-  'Keillor':   '#ef4444',
-  'Kyle':      '#0891b2',
-  'Logan':     '#d97706',
-  'Patrick':   '#4f46e5',
-  'Sara':      '#e11d48',
-  'TJ':        '#059669',
-  'Tom Moran': '#84cc16',
-  'Goon':      '#7c3aed',
+  'Kade':         '#e11d48',
+  'Zach':         '#2563eb',
+  'Konrad':       '#16a34a',
+  'Cody (Left)':  '#f97316',
+  'Cody (Right)': '#9333ea',
+  'Scott':        '#0891b2',
+  'Brandon':      '#ca8a04',
+  'Allan':        '#14b8a6',
 };
 
-// Reverse map: team → participant name (populated below)
+// Reverse map: team → participant name (populated below, updated by applyDraftToParticipants)
 const TEAM_OWNER = {};
 for (const [name, teams] of Object.entries(PARTICIPANTS)) {
   for (const t of teams) TEAM_OWNER[t] = name;
+}
+
+/**
+ * Apply draft picks to PARTICIPANTS and rebuild TEAM_OWNER.
+ * Called by DraftEngine whenever picks change.
+ */
+function applyDraftToParticipants(picks) {
+  for (const name of Object.keys(PARTICIPANTS)) PARTICIPANTS[name] = [];
+  for (const pick of picks) {
+    if (pick.player in PARTICIPANTS) PARTICIPANTS[pick.player].push(pick.team);
+  }
+  for (const key of Object.keys(TEAM_OWNER)) delete TEAM_OWNER[key];
+  for (const [name, teams] of Object.entries(PARTICIPANTS)) {
+    for (const t of teams) TEAM_OWNER[t] = name;
+  }
 }
 
 // ── Groups ─────────────────────────────────────────────────────────────────────
