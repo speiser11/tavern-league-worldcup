@@ -1073,10 +1073,13 @@ a:hover { color: var(--red); }
 
 /* Team list under header */
 .sc-teams-list {
-  font-size: 0.67rem;
+  font-size: 8px;
   color: var(--text-3);
-  line-height: 1.55;
+  line-height: 1.2;
   margin-bottom: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Horizontal rule within a column */
