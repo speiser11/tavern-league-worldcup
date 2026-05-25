@@ -2,4 +2,4 @@
 git add .
 git commit -m "Update %date% %time%"
 git push origin main
-echo Done. Site live at https://loganthein.github.io/worldcup-elite-fantasy/
+echo Done. Site live at https://speiser11.github.io/tavern-league-worldcup/
