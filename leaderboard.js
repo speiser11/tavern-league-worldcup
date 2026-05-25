@@ -115,10 +115,10 @@ function _buildEntry(entry) {
   else if (rankDelta < 0)  deltaHtml = `<span class="rank-delta delta-down">▼${Math.abs(rankDelta)}</span>`;
   else                     deltaHtml = `<span class="rank-delta delta-same">—</span>`;
 
-  // Teams line
-  const teamsHtml = entry.teams
-    .map(t => `${flagImg(t)}\u202f${escHtml(t)}`)
-    .join('  ·  ');
+  // Show only Tier A team in the row; full list in expanded breakdown
+  const tierATeam = entry.teams.find(t => TIER_A.has(t));
+  const previewTeam = tierATeam ?? entry.teams[0];
+  const teamsHtml = previewTeam ? `${flagImg(previewTeam)} ${escHtml(previewTeam)}` : `—`;
 
   // Conflict warning icon
   const conflictHtml = entry.flags?.length
