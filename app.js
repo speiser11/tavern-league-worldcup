@@ -99,7 +99,7 @@ const SCORING = {
   },
   tierB: {
     group_win:       4,
-    group_draw:      1,
+    group_draw:      2,
     group_1st_bonus: 3,   // finishing 1st in group (group complete)
     group_advance:   3,   // advancing from group stage
     round_of_32:     6,
@@ -107,6 +107,7 @@ const SCORING = {
     quarterfinal:    12,
     semifinal:       16,
     champion:        20,
+    giant_killer:    5,   // bonus for beating a Tier A team
   },
 };
 
@@ -625,7 +626,7 @@ function determineGroupWinners(matches) {
  */
 function _scoreTeam(teamName, matches, advancedTeams, groupWinners) {
   const tier = scoringFor(teamName);
-  let wins = 0, draws = 0, bonuses = 0, knockoutPts = 0;
+  let wins = 0, draws = 0, bonuses = 0, knockoutPts = 0, giantKillerPts = 0;
 
   for (const m of matches) {
     if (!isFinished(m.status)) continue;
@@ -633,6 +634,7 @@ function _scoreTeam(teamName, matches, advancedTeams, groupWinners) {
 
     const teamScore = m.homeTeam === teamName ? m.homeScore : m.awayScore;
     const oppScore  = m.homeTeam === teamName ? m.awayScore : m.homeScore;
+    const oppTeam   = m.homeTeam === teamName ? m.awayTeam  : m.homeTeam;
     const won  = teamScore > oppScore;
     const drew = teamScore === oppScore;
 
@@ -643,13 +645,18 @@ function _scoreTeam(teamName, matches, advancedTeams, groupWinners) {
       const key = ROUND_SCORE_KEY[m.round];
       if (key) knockoutPts += tier[key];
     }
+
+    // Giant Killer: Tier B team beats a Tier A team (any round)
+    if (won && tier.giant_killer && TIER_A.has(oppTeam)) {
+      giantKillerPts += tier.giant_killer;
+    }
   }
 
   if (advancedTeams.has(teamName)) bonuses += tier.group_advance;
   if (groupWinners.has(teamName))  bonuses += tier.group_1st_bonus;
 
-  const total = wins * tier.group_win + draws * tier.group_draw + bonuses + knockoutPts;
-  return { wins, draws, bonuses, knockoutPts, total };
+  const total = wins * tier.group_win + draws * tier.group_draw + bonuses + knockoutPts + giantKillerPts;
+  return { wins, draws, bonuses, knockoutPts, giantKillerPts, total };
 }
 
 // ── Score history builder ──────────────────────────────────────────────────────
@@ -713,6 +720,14 @@ function _buildScoreHistory(teamNames, matches, advancedTeams, groupWinners) {
       if (pts > 0) {
         running += pts;
         events.push({ date: m.date, matchId: m.matchId, team: teamName, event, pts, runningTotal: running });
+      }
+
+      // Giant Killer bonus
+      const oppTeam = m.homeTeam === teamName ? m.awayTeam : m.homeTeam;
+      if (won && tier.giant_killer && TIER_A.has(oppTeam)) {
+        running += tier.giant_killer;
+        events.push({ date: m.date, matchId: m.matchId, team: teamName,
+          event: 'giant_killer', pts: tier.giant_killer, runningTotal: running });
       }
     }
   }
@@ -1174,15 +1189,18 @@ function _potentialMatchPts(match, teamName) {
   const drawing = teamScore === oppScore;
   const tier    = scoringFor(teamName);
 
+  const oppTeam = match.homeTeam === teamName ? match.awayTeam : match.homeTeam;
+  const gkBonus = (winning && tier.giant_killer && TIER_A.has(oppTeam)) ? tier.giant_killer : 0;
+
   if (match.round === 'group') {
-    if (winning) return tier.group_win;
+    if (winning) return tier.group_win + gkBonus;
     if (drawing) return tier.group_draw;
     return 0;
   }
 
   if (winning) {
     const key = ROUND_SCORE_KEY[match.round];
-    return key ? tier[key] : 0;
+    return (key ? tier[key] : 0) + gkBonus;
   }
   return 0;
 }
@@ -1270,6 +1288,7 @@ const FEED_EVENT_LABELS = {
   group_draw:   'Group stage draw',
   group_advance:'Advanced from group',
   group_1st:    'Won group (1st place)',
+  giant_killer: 'Giant Killer bonus',
   round_of_32:  'Round of 32 win',
   round_of_16:  'Round of 16 win',
   quarterfinal: 'Quarterfinal win',
@@ -1350,6 +1369,16 @@ function buildActivityFeed(matches) {
       if (pts > 0) {
         feed.push({
           date: m.date, owner, team: teamName, event, pts,
+          homeTeam: m.homeTeam, awayTeam: m.awayTeam,
+          homeScore: m.homeScore, awayScore: m.awayScore, matchId: m.matchId,
+        });
+      }
+
+      // Giant Killer bonus
+      const oppTeam = m.homeTeam === teamName ? m.awayTeam : m.homeTeam;
+      if (won && tier.giant_killer && TIER_A.has(oppTeam)) {
+        feed.push({
+          date: m.date, owner, team: teamName, event: 'giant_killer', pts: tier.giant_killer,
           homeTeam: m.homeTeam, awayTeam: m.awayTeam,
           homeScore: m.homeScore, awayScore: m.awayScore, matchId: m.matchId,
         });

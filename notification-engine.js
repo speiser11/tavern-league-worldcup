@@ -142,9 +142,12 @@ class NotificationEngine {
         const flag = TEAM_FLAGS[teamName] || '';
 
         if (ts > os) {
+          const tier   = scoringFor(teamName);
+          const opp    = isHome ? m.awayTeam : m.homeTeam;
+          const gkBonus = (tier.giant_killer && TIER_A.has(opp)) ? tier.giant_killer : 0;
           const pts = m.round === 'group'
-            ? SCORING.group_win + (!TIER_A.has(teamName) ? SCORING.group_win_bonus : 0)
-            : (SCORING[ROUND_SCORE_KEY[m.round]] ?? 0);
+            ? tier.group_win + gkBonus
+            : (tier[ROUND_SCORE_KEY[m.round]] ?? 0) + gkBonus;
           const rank = rankMap[owner];
           const rankStr = rank ? ` (now ${rank}${_ordinal(rank)})` : '';
           events.push({

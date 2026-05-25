@@ -199,6 +199,8 @@ function _buildBreakdownHTML(entry) {
       chips.push(`<span class="bd-stat-chip chip-bonus">+${td.bonuses} bonus</span>`);
     if ((td.knockoutPts ?? 0) > 0)
       chips.push(`<span class="bd-stat-chip chip-ko">+${td.knockoutPts} KO</span>`);
+    if ((td.giantKillerPts ?? 0) > 0)
+      chips.push(`<span class="bd-stat-chip chip-bonus">+${td.giantKillerPts} Giant Killer</span>`);
     if (!chips.length)
       chips.push(`<span class="bd-stat-chip chip-none">No matches yet</span>`);
 
