@@ -311,32 +311,42 @@ function _savePrevRanks(scores) {
 // ── Tournament countdown ───────────────────────────────────────────────────────
 
 function initCountdown() {
-  // Opening match: Mexico City, June 11 2026, ~8 PM CDT (UTC-5)
-  const TARGET  = new Date('2026-06-11T20:00:00-05:00');
-  const banner  = document.getElementById('tournament-countdown');
+  const TARGET = new Date('2026-06-11T20:00:00-05:00');
+  const banner = document.getElementById('tournament-countdown');
   if (!banner || Date.now() >= TARGET) return;
 
-  // Build DOM once; update only text nodes each tick
   banner.innerHTML = `
-    <div class="tcd-card">
-      <div class="tcd-label">World Cup 2026 kicks off in</div>
-      <div class="tcd-units">
-        <div class="tcd-unit"><span class="tcd-num" id="tcd-d">--</span><span class="tcd-lbl">Days</span></div>
-        <span class="tcd-sep" aria-hidden="true">:</span>
-        <div class="tcd-unit"><span class="tcd-num" id="tcd-h">--</span><span class="tcd-lbl">Hrs</span></div>
-        <span class="tcd-sep" aria-hidden="true">:</span>
-        <div class="tcd-unit"><span class="tcd-num" id="tcd-m">--</span><span class="tcd-lbl">Min</span></div>
-        <span class="tcd-sep" aria-hidden="true">:</span>
-        <div class="tcd-unit"><span class="tcd-num" id="tcd-s">--</span><span class="tcd-lbl">Sec</span></div>
+    <div class="tcd-wrap">
+      <div class="tcd-eyebrow">⚽ Kickoff in</div>
+      <div class="tcd-blocks">
+        <div class="tcd-block tcd-days">
+          <span class="tcd-num" id="tcd-d">--</span>
+          <span class="tcd-lbl">Days</span>
+        </div>
+        <div class="tcd-block tcd-hours">
+          <span class="tcd-num" id="tcd-h">--</span>
+          <span class="tcd-lbl">Hours</span>
+        </div>
+        <div class="tcd-block tcd-mins">
+          <span class="tcd-num" id="tcd-m">--</span>
+          <span class="tcd-lbl">Min</span>
+        </div>
+        <div class="tcd-block tcd-secs">
+          <span class="tcd-num" id="tcd-s">--</span>
+          <span class="tcd-lbl">Sec</span>
+        </div>
       </div>
+      <div class="tcd-sub">June 11, 2026 · Los Angeles, CA</div>
     </div>
   `;
   banner.hidden = false;
 
-  const dEl = document.getElementById('tcd-d');
-  const hEl = document.getElementById('tcd-h');
-  const mEl = document.getElementById('tcd-m');
-  const sEl = document.getElementById('tcd-s');
+  const wrap      = banner.querySelector('.tcd-wrap');
+  const secsBlock = banner.querySelector('.tcd-secs');
+  const dEl       = document.getElementById('tcd-d');
+  const hEl       = document.getElementById('tcd-h');
+  const mEl       = document.getElementById('tcd-m');
+  const sEl       = document.getElementById('tcd-s');
 
   let timer;
 
@@ -347,10 +357,19 @@ function initCountdown() {
       clearInterval(timer);
       return;
     }
+
     dEl.textContent = Math.floor(ms / 86400000);
     hEl.textContent = String(Math.floor((ms % 86400000) / 3600000)).padStart(2, '0');
     mEl.textContent = String(Math.floor((ms % 3600000)  / 60000)).padStart(2, '0');
     sEl.textContent = String(Math.floor((ms % 60000)    / 1000)).padStart(2, '0');
+
+    // Toggle urgency state (under 24 hours)
+    wrap.classList.toggle('tcd-urgent', ms < 86400000);
+
+    // Restart glow animation on seconds block each tick
+    secsBlock.classList.remove('tcd-tick');
+    void secsBlock.offsetWidth; // force reflow so animation replays
+    secsBlock.classList.add('tcd-tick');
   }
 
   tick();
