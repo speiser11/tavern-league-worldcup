@@ -1745,6 +1745,69 @@ a:hover { color: var(--red); }
   font-weight: 400 !important;
 }
 
+/* ── Tournament countdown banner ─────────────────────────────────────────── */
+
+.tcd-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 1.1rem 1.25rem 1rem;
+  margin-bottom: 0.75rem;
+  text-align: center;
+  box-shadow: var(--shadow-card);
+}
+
+.tcd-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.75rem;
+}
+
+.tcd-units {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.tcd-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 3.75rem;
+}
+
+.tcd-num {
+  font-family: var(--font-display);
+  font-size: 2.8rem;
+  line-height: 1;
+  color: var(--text-1);
+  letter-spacing: 0.02em;
+}
+
+.tcd-lbl {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 500;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.tcd-sep {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  color: var(--text-3);
+  line-height: 1;
+  padding-top: 0.05rem;
+  flex-shrink: 0;
+}
+
 /* ── Flag images (flagcdn.com) ────────────────────────────────────────────── */
 
 .flag-img {
