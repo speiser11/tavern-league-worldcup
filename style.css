@@ -81,7 +81,7 @@ a:hover { color: var(--red); }
 }
 
 .header-inner {
-  max-width: 860px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 0.75rem 1rem 0.5rem;
   display: flex;
@@ -213,7 +213,7 @@ a:hover { color: var(--red); }
 /* ── Tab navigation ───────────────────────────────────────────────────────── */
 .tab-nav {
   display: flex;
-  max-width: 860px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 0;
   overflow-x: auto;
@@ -255,7 +255,7 @@ a:hover { color: var(--red); }
 
 /* ── Main content ─────────────────────────────────────────────────────────── */
 .site-main {
-  max-width: 860px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 1.25rem 0.75rem 5rem;
 }
@@ -895,7 +895,7 @@ a:hover { color: var(--red); }
 
 /* ── Footer ───────────────────────────────────────────────────────────────── */
 .site-footer {
-  max-width: 860px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 1rem 0.75rem;
   display: flex;
