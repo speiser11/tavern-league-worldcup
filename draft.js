@@ -228,7 +228,7 @@ class DraftEngine {
     wrap.className = 'draft-wrap';
     wrap.appendChild(this._buildHeader());
     if (this._state.status !== 'pending') {
-      wrap.appendChild(this._buildStrip());
+      wrap.appendChild(this._buildDraftBoard());
       wrap.appendChild(this._buildGrid());
     }
 
@@ -330,40 +330,82 @@ class DraftEngine {
     `;
   }
 
-  // ── Pick order strip ──────────────────────────────────────────────────────────
+  // ── Draft board table ─────────────────────────────────────────────────────────
 
-  _buildStrip() {
+  _buildDraftBoard() {
+    const picks   = this._state.picks ?? [];
+    const pickMap = {};
+    for (const p of picks) pickMap[p.overall] = p;
+
     const curOverall = this._nextOverall;
-    const strip = document.createElement('div');
-    strip.className = 'draft-strip';
+    const isActive   = this._state.status === 'active';
 
+    const wrap = document.createElement('div');
+    wrap.className = 'db-wrap';
+
+    const board = document.createElement('div');
+    board.className = 'db-board';
+
+    // Header row — player names
+    const hdr = document.createElement('div');
+    hdr.className = 'db-row db-hdr-row';
+    hdr.appendChild(Object.assign(document.createElement('div'), { className: 'db-corner' }));
+
+    for (let i = 0; i < DRAFT_N; i++) {
+      const player = this._state.draftOrder[i];
+      const color  = OWNER_COLORS[player] || '#8090b8';
+      const hd = document.createElement('div');
+      hd.className = 'db-phd';
+      hd.style.cssText = `color:${color};border-bottom:3px solid ${color};`;
+      hd.textContent = _shortName(player);
+      hdr.appendChild(hd);
+    }
+    board.appendChild(hdr);
+
+    // Round rows
     for (let r = 0; r < DRAFT_RNDS; r++) {
-      const rEl = document.createElement('div');
-      rEl.className = 'draft-strip-round';
+      const row = document.createElement('div');
+      row.className = 'db-row';
 
-      const lbl = document.createElement('span');
-      lbl.className = 'draft-strip-rlabel';
-      lbl.textContent = `R${r + 1}`;
-      rEl.appendChild(lbl);
+      const rl = document.createElement('div');
+      rl.className = 'db-rlbl';
+      rl.textContent = `R${r + 1}`;
+      row.appendChild(rl);
 
       for (let pos = 0; pos < DRAFT_N; pos++) {
-        const overall   = r * DRAFT_N + pos + 1;
-        const pIdx      = r % 2 === 0 ? pos : DRAFT_N - 1 - pos;
-        const name      = this._state.draftOrder[pIdx];
-        const isDone    = overall < curOverall;
-        const isCurrent = overall === curOverall && this._state.status === 'active';
-        const color     = OWNER_COLORS[name] || '#8090b8';
+        const overall = r * DRAFT_N + pos + 1;
+        const pIdx    = r % 2 === 0 ? pos : DRAFT_N - 1 - pos;
+        const player  = this._state.draftOrder[pIdx];
+        const color   = OWNER_COLORS[player] || '#8090b8';
+        const pick    = pickMap[overall];
+        const onClock = overall === curOverall && isActive;
 
-        const cell = document.createElement('span');
-        cell.className = `draft-strip-cell${isDone ? ' done' : ''}${isCurrent ? ' current' : ''}`;
-        cell.title = `Pick ${overall}: ${name}`;
-        if (isCurrent) cell.style.cssText = `background:${color};color:#fff;border-color:${color};`;
-        cell.textContent = name.split(' ')[0].substring(0, 7);
-        rEl.appendChild(cell);
+        const [rv, gv, bv] = [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16));
+
+        const cell = document.createElement('div');
+        cell.className = `db-cell${pick ? ' db-picked' : ''}${onClock ? ' db-clock' : ''}`;
+        cell.style.cssText = `--r:${rv};--g:${gv};--b:${bv};`;
+
+        if (pick) {
+          cell.innerHTML = `
+            ${flagImg(pick.team, 'flag-img-sm')}
+            <span class="db-team">${escHtml(pick.team)}</span>
+            <span class="db-pnum">#${pick.overall}</span>
+          `;
+        } else if (onClock) {
+          cell.innerHTML = `
+            <span class="db-clock-dot"></span>
+            <span class="db-clock-lbl">Picking…</span>
+          `;
+        }
+
+        row.appendChild(cell);
       }
-      strip.appendChild(rEl);
+      board.appendChild(row);
     }
-    return strip;
+
+    wrap.appendChild(board);
+    return wrap;
   }
 
   // ── Team grid ─────────────────────────────────────────────────────────────────
@@ -469,6 +511,8 @@ class DraftEngine {
     return card;
   }
 
+  // ── Helpers ───────────────────────────────────────────────────────────────────
+
   _applyFilter(grid, search, filter) {
     const q = search.toLowerCase().trim();
     for (const card of grid.querySelectorAll('.draft-card')) {
@@ -480,4 +524,9 @@ class DraftEngine {
       card.hidden = !(nameMatch && filterMatch);
     }
   }
+}
+
+// "Cody (Left)" → "Cody L", "Cody (Right)" → "Cody R", others unchanged
+function _shortName(name) {
+  return name.replace(/\s*\((\w)\w*\)/, (_, c) => ` ${c}`);
 }
