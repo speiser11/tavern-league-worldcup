@@ -1245,7 +1245,7 @@ a:hover { color: var(--red); }
     gap: 0.75rem;
   }
   /* Scoring card spans full width */
-  .rules-grid > .rules-card:nth-child(2) {
+  .rules-card-full {
     grid-column: 1 / -1;
   }
 }
@@ -2229,7 +2229,7 @@ a:hover { color: var(--red); }
 
   /* Rules grid: 2-col, scoring card always full width */
   .rules-grid { grid-template-columns: 1fr 1fr; }
-  .rules-grid > .rules-card:nth-child(2) { grid-column: 1 / -1; }
+  .rules-card-full { grid-column: 1 / -1; }
 }
 
 /* ── Draft board ──────────────────────────────────────────────────────────── */
