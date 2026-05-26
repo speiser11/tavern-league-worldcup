@@ -420,9 +420,21 @@ function _slateTitle(matches) {
   const anyDone   = matches.some(m => isFinished(m.status));
   const anyLive   = matches.some(m => isLive(m.status));
   const anyFuture = matches.some(m => m.status === 'NS');
+
+  // Are these matches actually on today's calendar date?
+  const todayStr   = new Date().toDateString();
+  const matchDay   = matches.length ? new Date(matches[0].date).toDateString() : todayStr;
+  const isToday    = matchDay === todayStr;
+
   if (anyLive || (anyDone && anyFuture)) return "TODAY'S SLATE";
-  if (anyFuture && !anyDone)             return 'UPCOMING TODAY';
-  if (anyDone && !anyFuture)             return "TODAY'S RESULTS";
+  if (anyFuture && !anyDone) {
+    if (isToday) return 'UPCOMING TODAY';
+    // Future day — show the actual date
+    const d = new Date(matches[0].date);
+    const label = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    return `NEXT UP · ${label.toUpperCase()}`;
+  }
+  if (anyDone && !anyFuture) return isToday ? "TODAY'S RESULTS" : 'RECENT RESULTS';
   return 'MATCH SLATE';
 }
 
