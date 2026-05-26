@@ -9,7 +9,7 @@
   <meta property="og:description" content="Live fantasy leaderboard for the 2026 Tavern League World Cup Shenanigans." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
   <!-- OneSignal Web Push SDK (v16) -->
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
@@ -19,14 +19,19 @@
   <header class="site-header">
     <div class="header-inner">
       <div class="header-left">
-        <h1 class="site-title">
-          <span class="site-title-main">2026 Tavern League World Cup Shenanigans</span>
-        </h1>
-        <span class="round-badge" id="current-round">—</span>
+        <div class="tl-logo" aria-hidden="true">TL</div>
+        <div class="site-title">
+          <span class="site-title-main">TAVERN LEAGUE</span>
+          <span class="site-title-sub">World Cup · Pool '26</span>
+        </div>
+      </div>
+      <div class="header-center">
+        <span class="header-status-dot" id="header-status-dot"></span>
+        <span id="current-round" class="header-status-text">—</span>
       </div>
       <div class="header-right">
-        <span class="source-badge" id="data-source"></span>
         <span class="updated-time" id="last-updated"></span>
+        <span class="source-badge" id="data-source"></span>
         <div class="notif-wrap">
           <button class="notif-bell" id="notif-bell"
                   aria-label="Enable push notifications"
@@ -41,27 +46,31 @@
     <nav class="tab-nav" role="tablist" aria-label="Site sections">
       <button class="tab-btn active" data-tab="leaderboard"
               role="tab" aria-selected="true" aria-controls="panel-leaderboard">
-        🏆 Leaderboard
+        Standings
+      </button>
+      <button class="tab-btn" data-tab="side-bets"
+              role="tab" aria-selected="false" aria-controls="panel-side-bets">
+        Side Bets
       </button>
       <button class="tab-btn" data-tab="draft"
               role="tab" aria-selected="false" aria-controls="panel-draft">
-        🎯 Draft
+        Draft
       </button>
-      <button class="tab-btn" data-tab="feed"
-              role="tab" aria-selected="false" aria-controls="panel-feed">
-        📣 Feed
+      <button class="tab-btn" data-tab="wire"
+              role="tab" aria-selected="false" aria-controls="panel-wire">
+        Wire
       </button>
       <button class="tab-btn" data-tab="schedule"
               role="tab" aria-selected="false" aria-controls="panel-schedule">
-        📅 Schedule
+        Schedule
       </button>
       <button class="tab-btn" data-tab="groups"
               role="tab" aria-selected="false" aria-controls="panel-groups">
-        🗂 Groups
+        Groups
       </button>
       <button class="tab-btn" data-tab="rules"
               role="tab" aria-selected="false" aria-controls="panel-rules">
-        📖 Rules
+        Rules
       </button>
     </nav>
   </header>
@@ -71,14 +80,22 @@
     <div class="tab-panel" id="panel-leaderboard" role="tabpanel">
       <div id="tournament-countdown" hidden></div>
       <div id="live-banner" hidden></div>
-      <div class="lb-col-headers" aria-hidden="true">
-        <span class="lbch-rank">#</span>
-        <span class="lbch-name">Player</span>
-        <span class="lbch-teams">Teams</span>
-        <span class="lbch-score">Pts</span>
+      <div class="lb-layout">
+        <div class="lb-main-col">
+          <div id="leaderboard-container">
+            <p class="state-msg">Loading leaderboard…</p>
+          </div>
+        </div>
+        <div class="lb-rail" id="lb-rail">
+          <div id="rail-slate"></div>
+          <div id="rail-wire"></div>
+        </div>
       </div>
-      <div id="leaderboard-container">
-        <p class="state-msg">Loading leaderboard…</p>
+    </div>
+
+    <div class="tab-panel hidden" id="panel-side-bets" role="tabpanel">
+      <div id="side-bets-container">
+        <p class="state-msg">No side bets yet.</p>
       </div>
     </div>
 
@@ -88,9 +105,9 @@
       </div>
     </div>
 
-    <div class="tab-panel hidden" id="panel-feed" role="tabpanel">
+    <div class="tab-panel hidden" id="panel-wire" role="tabpanel">
       <div id="feed-container">
-        <p class="state-msg">Loading feed…</p>
+        <p class="state-msg">Loading wire…</p>
       </div>
     </div>
 

@@ -1,25 +1,66 @@
 /**
- * leaderboard.js — Leaderboard rendering, rank-delta tracking, countdown timer.
+ * leaderboard.js — Leaderboard rendering, right rail, rank-delta tracking,
+ *                  countdown timer, tab navigation.
+ *
+ * VA4 redesign: broadcast-flavored scoreboard aesthetic.
+ * Pitch-green leader accent · Anton/JetBrains Mono type · 0 border-radius
  *
  * Public API:
  *   renderLeaderboard(scores, matches)  — called by ScoringEngine after each fetch
- *   startCountdown(nextRefreshAt)        — called by ScoringEngine after scheduling refresh
+ *   startCountdown(nextRefreshAt)        — called by ScoringEngine
+ *   initCountdown()                      — called on DOMContentLoaded
+ *   initTabs()                           — called on DOMContentLoaded
  */
 
 // ── Module state ───────────────────────────────────────────────────────────────
-let _prevRanks          = {};   // { [name]: { rank, score } }
-let _countdownInterval  = null;
-let _currentMatches     = [];   // latest match array, used in breakdown
+let _prevRanks         = {};
+let _countdownInterval = null;
+let _currentMatches    = [];
+
+// ── Player monograms ───────────────────────────────────────────────────────────
+const PLAYER_MONOS = {
+  'Kade':         'KD',
+  'Zach':         'ZH',
+  'Konrad':       'KN',
+  'Cody (Left)':  'CL',
+  'Cody (Right)': 'CR',
+  'Scott':        'ST',
+  'Brandon':      'BN',
+  'Allan':        'AL',
+};
+
+// ── Team 3-letter codes ────────────────────────────────────────────────────────
+const TEAM_CODES = {
+  Mexico:          'MEX', 'South Korea':  'KOR', Czechia:       'CZE', 'South Africa': 'RSA',
+  Switzerland:     'SUI', Canada:         'CAN', Bosnia:        'BOS', Qatar:          'QAT',
+  Brazil:          'BRA', Morocco:        'MAR', Haiti:         'HAI', Scotland:       'SCO',
+  USA:             'USA', Paraguay:       'PAR', Australia:     'AUS', Turkey:         'TUR',
+  Germany:         'GER', Ecuador:        'ECU', 'Ivory Coast': 'CIV', Curacao:        'CUR',
+  Netherlands:     'NED', Japan:          'JPN', Sweden:        'SWE', Tunisia:        'TUN',
+  Belgium:         'BEL', Egypt:          'EGY', Iran:          'IRN', 'New Zealand':  'NZL',
+  Spain:           'ESP', Uruguay:        'URU', 'Saudi Arabia':'KSA', 'Cape Verde':   'CPV',
+  France:          'FRA', Senegal:        'SEN', Norway:        'NOR', Iraq:           'IRQ',
+  Argentina:       'ARG', Austria:        'AUT', Algeria:       'ALG', Jordan:         'JOR',
+  Portugal:        'POR', Colombia:       'COL', Congo:         'CGO', Uzbekistan:     'UZB',
+  England:         'ENG', Croatia:        'CRO', Ghana:         'GHA', Panama:         'PAN',
+};
+
+function _teamCode(name) {
+  return TEAM_CODES[name] || name.slice(0, 3).toUpperCase();
+}
 
 // ── Main render ────────────────────────────────────────────────────────────────
 
 /**
  * @param {object[]} scores  — output of calculateScores()
- * @param {object[]} matches — parsed match array (for current-round detection)
+ * @param {object[]} matches — parsed match array
  */
 function renderLeaderboard(scores, matches) {
   _currentMatches = matches || [];
-  _prevRanks = _loadPrevRanks();
+  _prevRanks      = _loadPrevRanks();
+
+  // Update header status
+  _updateHeaderStatus(matches);
 
   const container = document.getElementById('leaderboard-container');
   container.innerHTML = '';
@@ -29,156 +70,244 @@ function renderLeaderboard(scores, matches) {
     return;
   }
 
-  // Update round badge in header
-  if (matches?.length) {
-    const info = getCurrentRound(matches);
-    const badge = document.getElementById('current-round');
-    if (badge) {
-      badge.textContent = info.label;
-      badge.classList.toggle('is-live', info.isLive);
-    }
-  }
-
-  // Compute biggest mover
-  let biggestMover = null, maxDelta = 0;
-  for (const entry of scores) {
-    const prev = _prevRanks[entry.name];
-    if (!prev) continue;
-    const rankDelta  = prev.rank - entry.rank;   // positive = moved up
-    const scoreDelta = entry.totalScore - prev.score;
-    if (rankDelta > maxDelta || (rankDelta === maxDelta && rankDelta > 0 && scoreDelta > (biggestMover?._scoreDelta ?? 0))) {
-      maxDelta = rankDelta;
-      biggestMover = { ...entry, _rankDelta: rankDelta, _scoreDelta: scoreDelta };
-    }
-  }
-
   const frag = document.createDocumentFragment();
 
-  if (biggestMover && maxDelta > 0) {
-    frag.appendChild(_buildBiggestMoverCard(biggestMover));
+  // Topbar: "THE TABLE" heading + filter chips
+  frag.appendChild(_buildTableTopbar());
+
+  // Standings table
+  const table = document.createElement('div');
+  table.className = 'lb-table';
+  table.setAttribute('role', 'table');
+  table.setAttribute('aria-label', 'Fantasy standings');
+
+  // Column header row
+  table.appendChild(_buildColHeader());
+
+  // Entry rows
+  for (const entry of scores) {
+    table.appendChild(_buildEntry(entry));
   }
 
-  for (const entry of scores) {
-    frag.appendChild(_buildEntry(entry));
-  }
+  frag.appendChild(table);
+
+  // Legend
+  frag.appendChild(_buildLegend());
+
   container.appendChild(frag);
+
+  // Right rail: today's slate + wire
+  _renderRightRail(matches);
 
   _savePrevRanks(scores);
 }
 
-// ── Biggest Mover card ─────────────────────────────────────────────────────────
+// ── Header status ──────────────────────────────────────────────────────────────
 
-function _buildBiggestMoverCard(entry) {
-  const color = (typeof OWNER_COLORS !== 'undefined' && OWNER_COLORS[entry.name]) || '#1a8a40';
-  const r = parseInt(color.slice(1,3), 16);
-  const g = parseInt(color.slice(3,5), 16);
-  const b = parseInt(color.slice(5,7), 16);
-
-  const teamsHtml = entry.teams
-    .map(t => `${flagImg(t)}\u202f${escHtml(t)}`)
-    .join('  ·  ');
-
-  const scoreLine = entry._scoreDelta > 0
-    ? `<span class="bm-score">+${entry._scoreDelta} pts</span>`
-    : '';
-
-  const el = document.createElement('div');
-  el.className = 'bm-card';
-  el.style.borderLeftColor = color;
-  el.style.background = `rgba(${r},${g},${b},0.06)`;
-
-  el.innerHTML = `
-    <span class="bm-label">Biggest Mover</span>
-    <span class="bm-delta">▲${entry._rankDelta}</span>
-    <span class="bm-name">${escHtml(entry.name)}</span>
-    <span class="bm-teams">${teamsHtml}</span>
-    ${scoreLine}
-  `;
-  return el;
+function _updateHeaderStatus(matches) {
+  if (!matches?.length) return;
+  const info  = getCurrentRound(matches);
+  const badge = document.getElementById('current-round');
+  const dot   = document.getElementById('header-status-dot');
+  if (badge) {
+    badge.textContent = info.label;
+    badge.classList.toggle('is-live', info.isLive);
+  }
+  if (dot) {
+    dot.classList.toggle('is-live', info.isLive);
+  }
 }
 
-// ── Entry builder ──────────────────────────────────────────────────────────────
+// ── Table topbar ───────────────────────────────────────────────────────────────
+
+function _buildTableTopbar() {
+  const div = document.createElement('div');
+  div.className = 'lb-topbar';
+  div.innerHTML = `
+    <div>
+      <div class="lb-eyebrow">The League · Standings</div>
+      <div class="lb-big-title">THE TABLE</div>
+    </div>
+    <div class="lb-view-filters">
+      <span class="lb-vf active">Overall</span>
+      <span class="lb-vf">Today</span>
+      <span class="lb-vf">Group Stage</span>
+      <span class="lb-vf">Knockouts</span>
+    </div>
+  `;
+  return div;
+}
+
+// ── Column header ──────────────────────────────────────────────────────────────
+
+function _buildColHeader() {
+  const div = document.createElement('div');
+  div.className = 'lb-col-header';
+  div.setAttribute('aria-hidden', 'true');
+  div.innerHTML = `
+    <span class="lbch-pos">Pos</span>
+    <span class="lbch-player">Player</span>
+    <span class="lbch-deck">The Deck &middot; pts per team</span>
+    <span class="lbch-form">Form L5</span>
+    <span class="lbch-pts">Pts</span>
+    <span class="lbch-delta">±</span>
+  `;
+  return div;
+}
+
+// ── Entry row ──────────────────────────────────────────────────────────────────
 
 function _buildEntry(entry) {
-  const prev       = _prevRanks[entry.name];
-  const rankDelta  = prev ? prev.rank - entry.rank : 0;  // positive = improved
-  const prevScore  = prev?.score ?? null;
-  const rankClass  = `lb-rank-${Math.min(entry.rank, 4)}`;  // 4+ gets no special colour
+  const prev      = _prevRanks[entry.name];
+  const rankDelta = prev ? prev.rank - entry.rank : 0;
+  const prevScore = prev?.score ?? null;
 
-  const wrap = document.createElement('div');
-  wrap.className = `lb-entry ${rankClass}`;
-  wrap.dataset.name = entry.name;
+  const color    = (typeof OWNER_COLORS !== 'undefined' && OWNER_COLORS[entry.name]) || '#9A9A93';
+  const mono     = PLAYER_MONOS[entry.name] || entry.name.slice(0, 2).toUpperCase();
+  const form     = _buildPlayerForm(entry, _currentMatches);
+  const isLeader = entry.rank === 1;
 
-  // Rank delta
+  // Rank number: leader gets 01 crown treatment
+  const rankStr = String(entry.rank).padStart(2, '0');
+
+  // Delta HTML
   let deltaHtml;
-  if      (rankDelta > 0)  deltaHtml = `<span class="rank-delta delta-up">▲${rankDelta}</span>`;
-  else if (rankDelta < 0)  deltaHtml = `<span class="rank-delta delta-down">▼${Math.abs(rankDelta)}</span>`;
-  else                     deltaHtml = `<span class="rank-delta delta-same">—</span>`;
+  if      (rankDelta > 0) deltaHtml = `<span class="rank-delta delta-up">▲${rankDelta}</span>`;
+  else if (rankDelta < 0) deltaHtml = `<span class="rank-delta delta-down">▼${Math.abs(rankDelta)}</span>`;
+  else                    deltaHtml = `<span class="rank-delta delta-same">—</span>`;
 
-  // Show only Tier A team in the row; full list in expanded breakdown
-  const tierATeam = entry.teams.find(t => TIER_A.has(t));
-  const previewTeam = tierATeam ?? entry.teams[0];
-  const teamsHtml = previewTeam ? `${flagImg(previewTeam)} ${escHtml(previewTeam)}` : `—`;
-
-  // Conflict warning icon
+  // Conflict warning
   const conflictHtml = entry.flags?.length
     ? ` <span class="conflict-icon" title="${escHtml(entry.flags[0])}">⚠</span>`
     : '';
 
-  // Pre-render breakdown so it's available immediately on desktop
-  const breakdownHtml = _buildBreakdownHTML(entry);
+  const wrap = document.createElement('div');
+  wrap.className = `lb-entry lb-rank-${Math.min(entry.rank, 4)}`;
+  wrap.dataset.name = entry.name;
 
   wrap.innerHTML = `
-    <div class="lb-main">
+    <div class="lb-main" role="button" tabindex="0"
+         aria-expanded="false"
+         aria-label="Score breakdown for ${escHtml(entry.name)}">
       <div class="lb-rank-cell">
-        <span class="rank-num">${entry.rank}</span>
-        ${deltaHtml}
+        <span class="rank-num">${rankStr}</span>
+        ${isLeader ? '<span class="leader-crown" aria-label="Leader">👑</span>' : ''}
       </div>
       <div class="lb-player-cell">
+        <span class="lb-player-mono" style="background:${color}">${escHtml(mono)}</span>
         <span class="lb-name">${escHtml(entry.name)}${conflictHtml}</span>
       </div>
-      <div class="lb-teams-cell">
-        <span class="lb-teams-text">${teamsHtml}</span>
+      <div class="lb-deck-cell">
+        ${_buildDeckChips(entry.teams, entry.teamBreakdown)}
+      </div>
+      <div class="lb-form-cell">
+        ${_buildFormDots(form)}
       </div>
       <div class="lb-score-cell">
         <span class="lb-score" data-score="${entry.totalScore}">${entry.totalScore}</span>
       </div>
-      <button class="lb-toggle" aria-expanded="false"
-              aria-label="Show score breakdown for ${escHtml(entry.name)}">›</button>
-      <span class="lb-expand-hint" aria-hidden="true">▼ details</span>
+      <div class="lb-delta-cell">
+        ${deltaHtml}
+      </div>
     </div>
-    <div class="lb-breakdown" aria-hidden="true">${breakdownHtml}</div>
+    <div class="lb-breakdown" aria-hidden="true">
+      ${_buildBreakdownHTML(entry)}
+    </div>
   `;
 
-  // Animate score if it changed since last render
+  // Score flash animation when score changed
   if (prevScore !== null && prevScore !== entry.totalScore) {
     const scoreEl = wrap.querySelector('.lb-score');
     requestAnimationFrame(() => {
       scoreEl.classList.remove('score-flash');
-      void scoreEl.offsetWidth; // force reflow so animation re-triggers
+      void scoreEl.offsetWidth;
       scoreEl.classList.add('score-flash');
       scoreEl.addEventListener('animationend', () => scoreEl.classList.remove('score-flash'), { once: true });
     });
   }
 
-  // Toggle expand on click anywhere in the main row
+  // Click to expand/collapse breakdown
   wrap.querySelector('.lb-main').addEventListener('click', () => _toggleEntry(wrap, entry));
 
   return wrap;
+}
+
+// ── Deck chips ─────────────────────────────────────────────────────────────────
+
+function _buildDeckChips(teams, breakdown) {
+  return teams.map(teamName => {
+    const td      = breakdown[teamName] ?? {};
+    const pts     = td.total ?? 0;
+    const isTierA = typeof TIER_A !== 'undefined' && TIER_A.has(teamName);
+    const code    = _teamCode(teamName);
+    const ptsText = pts > 0 ? `+${pts}` : '—';
+
+    return `<div class="deck-chip${isTierA ? ' dc-tier-a' : ''}" title="${escHtml(teamName)}: ${pts} pts">
+      <span class="dc-flag">${flagImg(teamName, 'flag-img-sm')}</span>
+      <div class="dc-bottom">
+        <span class="dc-code">${code}</span>
+        <span class="dc-pts${pts > 0 ? ' has-pts' : ''}">${ptsText}</span>
+      </div>
+      ${isTierA ? '<span class="dc-tier-badge">A</span>' : ''}
+    </div>`;
+  }).join('');
+}
+
+// ── Form dots ──────────────────────────────────────────────────────────────────
+
+function _buildFormDots(form) {
+  if (!form.length) return '<span class="form-dot-empty">—</span>';
+  return form.map(f => {
+    const cls = f === 'W' ? 'form-dot-w' : f === 'D' ? 'form-dot-d' : 'form-dot-l';
+    return `<span class="form-dot ${cls}">${f}</span>`;
+  }).join('');
+}
+
+// ── Player form (W/D/L last 5) ─────────────────────────────────────────────────
+
+function _buildPlayerForm(entry, matches) {
+  const teamSet = new Set(entry.teams);
+  const played  = [];
+
+  for (const m of matches) {
+    if (!isFinished(m.status)) continue;
+    if (m.homeScore === null || m.awayScore === null) continue;
+
+    const teamName = teamSet.has(m.homeTeam) ? m.homeTeam
+                   : teamSet.has(m.awayTeam) ? m.awayTeam
+                   : null;
+    if (!teamName) continue;
+
+    const isHome = m.homeTeam === teamName;
+    const ts = isHome ? m.homeScore : m.awayScore;
+    const os = isHome ? m.awayScore : m.homeScore;
+    const result = ts > os ? 'W' : ts < os ? 'L' : 'D';
+    played.push({ date: new Date(m.date), result });
+  }
+
+  played.sort((a, b) => a.date - b.date);
+  return played.slice(-5).map(p => p.result);
+}
+
+// ── Legend ─────────────────────────────────────────────────────────────────────
+
+function _buildLegend() {
+  const div = document.createElement('div');
+  div.className = 'lb-legend';
+  div.textContent = '▲ = Tier A team  ·  Deck chip = that team\'s pts contribution  ·  Form = last 5 results across all 6 teams';
+  return div;
 }
 
 // ── Expand / collapse ──────────────────────────────────────────────────────────
 
 function _toggleEntry(wrap, entry) {
   const isExpanding = !wrap.classList.contains('is-expanded');
-  const bd   = wrap.querySelector('.lb-breakdown');
-  const btn  = wrap.querySelector('.lb-toggle');
-  const hint = wrap.querySelector('.lb-expand-hint');
+  const bd  = wrap.querySelector('.lb-breakdown');
+  const btn = wrap.querySelector('.lb-main');
 
   wrap.classList.toggle('is-expanded', isExpanding);
   btn.setAttribute('aria-expanded', String(isExpanding));
   bd.setAttribute('aria-hidden', String(!isExpanding));
-  if (hint) hint.textContent = isExpanding ? '▲ details' : '▼ details';
 }
 
 // ── Breakdown HTML ─────────────────────────────────────────────────────────────
@@ -187,9 +316,8 @@ function _buildBreakdownHTML(entry) {
   const teamBlocks = entry.teams.map(teamName => {
     const td   = entry.teamBreakdown[teamName] ?? {};
     const flag = flagImg(teamName);
-    const tier = TIER_A.has(teamName) ? 'Tier A' : 'Tier B';
+    const tier = typeof TIER_A !== 'undefined' && TIER_A.has(teamName) ? 'Tier A' : 'Tier B';
 
-    // Stat chips
     const chips = [];
     if ((td.wins ?? 0) > 0)
       chips.push(`<span class="bd-stat-chip chip-win">${td.wins}W</span>`);
@@ -213,11 +341,11 @@ function _buildBreakdownHTML(entry) {
     let upcomingHtml = '';
     if (upcoming.length) {
       const rows = upcoming.map(m => {
-        const opp      = m.homeTeam === teamName ? m.awayTeam : m.homeTeam;
-        const oppFlag  = flagImg(opp);
-        const dateStr  = new Date(m.date).toLocaleDateString([], { month: 'short', day: 'numeric' });
-        const timeStr  = new Date(m.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-        const isHome   = m.homeTeam === teamName;
+        const opp     = m.homeTeam === teamName ? m.awayTeam : m.homeTeam;
+        const oppFlag = flagImg(opp);
+        const dateStr = new Date(m.date).toLocaleDateString([], { month: 'short', day: 'numeric' });
+        const timeStr = new Date(m.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        const isHome  = m.homeTeam === teamName;
         const oppLabel = opp.startsWith('Group') || opp.includes('Winner') || opp.includes('Loser')
           ? `<span class="bd-up-tbd">${escHtml(opp)}</span>`
           : `${oppFlag} ${escHtml(opp)}`;
@@ -249,6 +377,176 @@ function _buildBreakdownHTML(entry) {
   return `<div class="bd-inner">${teamBlocks}</div>`;
 }
 
+// ── Right rail ─────────────────────────────────────────────────────────────────
+
+function _renderRightRail(matches) {
+  const slateEl = document.getElementById('rail-slate');
+  const wireEl  = document.getElementById('rail-wire');
+  if (slateEl) slateEl.innerHTML = _buildSlateHTML(matches);
+  if (wireEl)  wireEl.innerHTML  = _buildWireHTML(matches);
+}
+
+// ── Slate (today's matches) ────────────────────────────────────────────────────
+
+function _getSlateMatches(matches) {
+  const now      = new Date();
+  const todayStr = now.toDateString();
+
+  const todayM = matches.filter(m => new Date(m.date).toDateString() === todayStr);
+  if (todayM.length) return todayM.slice(0, 8);
+
+  // Next upcoming day
+  const upcoming = matches
+    .filter(m => m.status === 'NS' && new Date(m.date) > now)
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+  if (upcoming.length) {
+    const nd = new Date(upcoming[0].date).toDateString();
+    return upcoming.filter(m => new Date(m.date).toDateString() === nd).slice(0, 8);
+  }
+
+  // Most recently finished day
+  const recent = matches
+    .filter(m => isFinished(m.status))
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  if (recent.length) {
+    const rd = new Date(recent[0].date).toDateString();
+    return recent.filter(m => new Date(m.date).toDateString() === rd).slice(0, 8);
+  }
+
+  return [];
+}
+
+function _slateTitle(matches) {
+  const anyDone   = matches.some(m => isFinished(m.status));
+  const anyLive   = matches.some(m => isLive(m.status));
+  const anyFuture = matches.some(m => m.status === 'NS');
+  if (anyLive || (anyDone && anyFuture)) return "TODAY'S SLATE";
+  if (anyFuture && !anyDone)             return 'UPCOMING TODAY';
+  if (anyDone && !anyFuture)             return "TODAY'S RESULTS";
+  return 'MATCH SLATE';
+}
+
+function _buildSlateHTML(matches) {
+  const slateMatches = _getSlateMatches(matches);
+  if (!slateMatches.length) return '';
+
+  const title = _slateTitle(slateMatches);
+
+  const rows = slateMatches.map(m => {
+    const isLiveM = isLive(m.status);
+    const isFT    = isFinished(m.status);
+
+    const timeStr    = new Date(m.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const statusText = isFT    ? 'FT'
+                     : isLiveM ? (m.elapsed ? `${m.elapsed}′` : 'LIVE')
+                     : timeStr;
+
+    const scoreStr = (m.homeScore !== null && m.awayScore !== null)
+      ? `${m.homeScore}–${m.awayScore}`
+      : '—';
+
+    const homeOwner = typeof TEAM_OWNER !== 'undefined' ? TEAM_OWNER[m.homeTeam] : null;
+    const awayOwner = typeof TEAM_OWNER !== 'undefined' ? TEAM_OWNER[m.awayTeam] : null;
+    const homeColor = homeOwner && typeof OWNER_COLORS !== 'undefined' ? OWNER_COLORS[homeOwner] : null;
+    const awayColor = awayOwner && typeof OWNER_COLORS !== 'undefined' ? OWNER_COLORS[awayOwner] : null;
+
+    const ownerBits = [];
+    if (homeOwner) ownerBits.push(`<span class="rail-owner-dot" style="background:${homeColor}" title="${escHtml(homeOwner)}"></span>`);
+    if (awayOwner) ownerBits.push(`<span class="rail-owner-dot" style="background:${awayColor}" title="${escHtml(awayOwner)}"></span>`);
+
+    return `<div class="rail-match${isLiveM ? ' is-live' : ''}">
+      <div class="rail-match-main">
+        <span class="rail-match-status${isLiveM ? ' is-live' : ''}">${statusText}</span>
+        <div class="rail-match-teams">
+          ${flagImg(m.homeTeam, 'flag-img-sm')}
+          <span class="rail-team-code">${_teamCode(m.homeTeam)}</span>
+          <span class="rail-dotted-line"></span>
+          <span class="rail-team-code">${_teamCode(m.awayTeam)}</span>
+          ${flagImg(m.awayTeam, 'flag-img-sm')}
+        </div>
+        <span class="rail-match-score${isLiveM ? ' is-live' : ''}">${scoreStr}</span>
+      </div>
+      ${ownerBits.length ? `<div class="rail-owners">${ownerBits.join('')}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  return `<div class="rail-card">
+    <div class="rail-card-header">
+      <span class="rail-card-title">${title}</span>
+      <span class="rail-card-meta">${slateMatches.length} matches · ET</span>
+    </div>
+    ${rows}
+  </div>`;
+}
+
+// ── Wire (activity feed) ───────────────────────────────────────────────────────
+
+function _buildWireHTML(matches) {
+  if (typeof buildActivityFeed === 'undefined') return '';
+  const feed = buildActivityFeed(matches).slice(0, 7);
+  if (!feed.length) return '';
+
+  const KIND_COLORS = {
+    group_win:     '#15803D',
+    group_draw:    '#B0AB97',
+    giant_killer:  '#15803D',
+    group_advance: '#1F49E8',
+    group_1st:     '#1F49E8',
+    round_of_32:   '#E0301E',
+    round_of_16:   '#E0301E',
+    quarterfinal:  '#E0301E',
+    semifinal:     '#E0301E',
+    champion:      '#D97706',
+  };
+
+  const KIND_LABELS = {
+    group_win:     'WIN',
+    group_draw:    'DRAW',
+    giant_killer:  'GIANT',
+    group_advance: 'ADV',
+    group_1st:     'ADV',
+    round_of_32:   'R32',
+    round_of_16:   'R16',
+    quarterfinal:  'QF',
+    semifinal:     'SF',
+    champion:      'CHAMP',
+  };
+
+  const rows = feed.map(item => {
+    const kindColor = KIND_COLORS[item.event] || '#0A0A0A';
+    const kindLabel = KIND_LABELS[item.event] || item.event.slice(0, 5).toUpperCase();
+    const ownerColor = (typeof OWNER_COLORS !== 'undefined' && OWNER_COLORS[item.owner]) || '#ccc';
+
+    const d = new Date(item.date);
+    const now = Date.now();
+    const diffMs = now - d;
+    const diffH = Math.floor(diffMs / 3600000);
+    const diffD = Math.floor(diffMs / 86400000);
+    const ago = diffD >= 1 ? `${diffD}d` : diffH >= 1 ? `${diffH}h` : 'now';
+
+    const mono = PLAYER_MONOS[item.owner] || item.owner.slice(0,2).toUpperCase();
+
+    return `<div class="rail-wire-item">
+      <div class="rail-wire-left">
+        <span class="rail-wire-kind" style="background:${kindColor}">${kindLabel}</span>
+        <span class="rail-wire-ago">${ago}</span>
+      </div>
+      <div class="rail-wire-text">
+        <span class="rail-wire-dot" style="background:${ownerColor}"></span>
+        <span>${escHtml(mono)} · ${flagImg(item.team, 'flag-img-sm')} ${escHtml(item.team)} <strong>+${item.pts}</strong></span>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="rail-card">
+    <div class="rail-card-header">
+      <span class="rail-card-title">THE WIRE</span>
+      <span class="rail-card-meta">Auto · Newest first</span>
+    </div>
+    ${rows}
+  </div>`;
+}
+
 // ── Current round detection ────────────────────────────────────────────────────
 
 const ROUND_LABELS = {
@@ -261,18 +559,15 @@ const ROUND_LABELS = {
 };
 
 function getCurrentRound(matches) {
-  // Any live match → use that round
   const live = matches.find(m => isLive(m.status));
   if (live) return { label: ROUND_LABELS[live.round] ?? live.round, isLive: true };
 
-  // Most recently completed match
   const finished = matches
     .filter(m => isFinished(m.status))
     .slice()
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   if (!finished.length) return { label: 'Pre-Tournament', isLive: false };
-
   return { label: ROUND_LABELS[finished[0].round] ?? finished[0].round, isLive: false };
 }
 
@@ -280,7 +575,6 @@ function getCurrentRound(matches) {
 
 function startCountdown(nextRefreshAt) {
   clearInterval(_countdownInterval);
-
   const el = document.getElementById('refresh-countdown');
   if (!el) return;
 
@@ -296,21 +590,7 @@ function startCountdown(nextRefreshAt) {
   _countdownInterval = setInterval(tick, 1000);
 }
 
-// ── Rank persistence ───────────────────────────────────────────────────────────
-
-function _loadPrevRanks() {
-  try { return JSON.parse(localStorage.getItem('wc_prev_ranks') || '{}'); }
-  catch { return {}; }
-}
-
-function _savePrevRanks(scores) {
-  const map = {};
-  for (const e of scores) map[e.name] = { rank: e.rank, score: e.totalScore };
-  try { localStorage.setItem('wc_prev_ranks', JSON.stringify(map)); }
-  catch { /* quota, private mode — ignore */ }
-}
-
-// ── Tournament countdown ───────────────────────────────────────────────────────
+// ── Tournament countdown banner ────────────────────────────────────────────────
 
 function initCountdown() {
   const TARGET = new Date('2026-06-11T20:00:00-05:00');
@@ -352,21 +632,14 @@ function initCountdown() {
   const sEl = document.getElementById('tcd-s');
 
   let timer;
-
   function tick() {
     const ms = TARGET - Date.now();
-    if (ms <= 0) {
-      banner.hidden = true;
-      clearInterval(timer);
-      return;
-    }
-
+    if (ms <= 0) { banner.hidden = true; clearInterval(timer); return; }
     dEl.textContent = Math.floor(ms / 86400000);
     hEl.textContent = String(Math.floor((ms % 86400000) / 3600000)).padStart(2, '0');
     mEl.textContent = String(Math.floor((ms % 3600000)  / 60000)).padStart(2, '0');
     sEl.textContent = String(Math.floor((ms % 60000)    / 1000)).padStart(2, '0');
   }
-
   tick();
   timer = setInterval(tick, 1000);
 }
@@ -392,6 +665,20 @@ function initTabs() {
       });
     });
   });
+}
+
+// ── Rank persistence ───────────────────────────────────────────────────────────
+
+function _loadPrevRanks() {
+  try { return JSON.parse(localStorage.getItem('wc_prev_ranks') || '{}'); }
+  catch { return {}; }
+}
+
+function _savePrevRanks(scores) {
+  const map = {};
+  for (const e of scores) map[e.name] = { rank: e.rank, score: e.totalScore };
+  try { localStorage.setItem('wc_prev_ranks', JSON.stringify(map)); }
+  catch { /* quota / private mode */ }
 }
 
 // ── Utility ────────────────────────────────────────────────────────────────────
