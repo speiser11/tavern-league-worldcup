@@ -1051,6 +1051,7 @@ class ScoringEngine {
 
         const tr = document.createElement('tr');
         tr.className = 'group-row';
+        if (isAdv) tr.dataset.advancing = '1';
         if (color) {
           const r = parseInt(color.slice(1,3), 16);
           const g = parseInt(color.slice(3,5), 16);
@@ -1417,6 +1418,7 @@ function _buildFeedItem(item) {
 
   const el = document.createElement('div');
   el.className = `feed-item${isChamp ? ' feed-item-champion' : ''}`;
+  el.dataset.event = item.event;
 
   const r = parseInt(color.slice(1,3), 16);
   const g = parseInt(color.slice(3,5), 16);

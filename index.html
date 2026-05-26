@@ -100,107 +100,158 @@
     </div>
 
     <div class="tab-panel hidden" id="panel-draft" role="tabpanel">
-      <div id="draft-container">
-        <p class="state-msg">Loading draft…</p>
+      <div class="va4-page-inner">
+        <div class="va4-page-head">
+          <div>
+            <div class="va4-sup">The draft · 8 players · 48 picks</div>
+            <div class="va4-heading">THE BOARD</div>
+            <div class="va4-sub-desc">Snake order: Round 1 picks Tier A in draft order, every subsequent round reverses. Each player ends up with 1 Tier A and 5 Tier B teams.</div>
+          </div>
+        </div>
+        <div id="draft-container">
+          <p class="state-msg">Loading draft…</p>
+        </div>
       </div>
     </div>
 
     <div class="tab-panel hidden" id="panel-wire" role="tabpanel">
-      <div id="feed-container">
-        <p class="state-msg">Loading wire…</p>
+      <div class="va4-page-inner">
+        <div class="va4-page-head">
+          <div>
+            <div class="va4-sup">League events · newest first</div>
+            <div class="va4-heading">THE WIRE</div>
+          </div>
+          <div class="va4-filter-chips">
+            <button class="va4-chip va4-chip-active">All</button>
+            <button class="va4-chip">Wins</button>
+            <button class="va4-chip">Advances</button>
+            <button class="va4-chip">Knockouts</button>
+          </div>
+        </div>
+        <div id="feed-container">
+          <p class="state-msg">Loading wire…</p>
+        </div>
       </div>
     </div>
 
     <div class="tab-panel hidden" id="panel-schedule" role="tabpanel">
-      <div id="schedule-container">
-        <p class="state-msg">Loading schedule…</p>
+      <div class="va4-page-inner">
+        <div class="va4-page-head">
+          <div>
+            <div class="va4-sup">Tournament · 104 matches · 12 groups</div>
+            <div class="va4-heading">SCHEDULE</div>
+          </div>
+          <div class="va4-filter-chips">
+            <button class="va4-chip va4-chip-active">All</button>
+            <button class="va4-chip">Live + upcoming</button>
+            <button class="va4-chip">Group stage</button>
+            <button class="va4-chip">Knockouts</button>
+          </div>
+        </div>
+        <div id="schedule-container">
+          <p class="state-msg">Loading schedule…</p>
+        </div>
       </div>
     </div>
 
     <div class="tab-panel hidden" id="panel-groups" role="tabpanel">
-      <div id="groups-container">
-        <p class="state-msg">Loading groups…</p>
+      <div class="va4-page-inner">
+        <div class="va4-page-head">
+          <div>
+            <div class="va4-sup">Group stage · top 2 advance from each</div>
+            <div class="va4-heading">THE 12 GROUPS</div>
+          </div>
+          <div class="va4-legend">
+            <span class="va4-legend-dot"></span>
+            Green band = on track to advance
+          </div>
+        </div>
+        <div id="groups-container">
+          <p class="state-msg">Loading groups…</p>
+        </div>
       </div>
     </div>
 
     <div class="tab-panel hidden" id="panel-rules" role="tabpanel">
-      <div class="rules-grid">
-
-        <!-- Scoring System — inline styles only so nothing can override layout -->
-        <div class="rules-card rules-card-full" style="padding:0;overflow:hidden;">
-
-          <!-- Card header -->
-          <div style="display:flex;align-items:center;gap:8px;padding:10px 14px 9px;border-bottom:1px solid #d4daee;">
-            <span>⚽</span>
-            <span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:1.2rem;letter-spacing:0.05em;color:#1a1e35;">Scoring System</span>
+      <div class="va4-page-inner">
+        <div class="va4-page-head" style="margin-bottom:18px">
+          <div>
+            <div class="va4-sup">How the league works · read once, never again</div>
+            <div class="va4-heading">THE RULES</div>
           </div>
+        </div>
 
-          <!-- Two equal columns — grid, never wraps -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;">
+        <!-- Tier A & B scoring side-by-side -->
+        <div class="va4-rules-tier-grid">
 
-            <!-- LEFT: Tier A -->
-            <div style="padding:10px 10px 12px;border-right:1px solid #d4daee;">
-
-              <div style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;letter-spacing:0.06em;color:#b86e00;margin-bottom:3px;">TIER A</div>
-              <div style="font-size:10px;color:#8090b8;line-height:1.4;margin-bottom:7px;">Spain · France · England · Brazil · Argentina · Portugal · Germany · Netherlands</div>
-
-              <div style="font-size:10px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.07em;color:#8090b8;margin-bottom:3px;">Group Stage</div>
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #edf1f8;font-size:13px;color:#1a1e35;"><span>Group win</span><span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;color:#2563eb;">2pts</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #edf1f8;font-size:13px;color:#1a1e35;"><span>Draw</span><span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;color:#2563eb;">1pt</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #edf1f8;font-size:13px;color:#1a1e35;"><span>Win group</span><span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;color:#2563eb;">+1</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #edf1f8;font-size:13px;color:#1a1e35;"><span>Advance</span><span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;color:#2563eb;">2pts</span></div>
-
-              <div style="font-size:10px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.07em;color:#8090b8;margin:7px 0 3px;">Knockout</div>
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #edf1f8;font-size:13px;color:#1a1e35;"><span>R32 win</span><span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;color:#d93025;">4pts</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #edf1f8;font-size:13px;color:#1a1e35;"><span>R16 win</span><span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;color:#d93025;">6pts</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #edf1f8;font-size:13px;color:#1a1e35;"><span>QF win</span><span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;color:#d93025;">9pts</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #edf1f8;font-size:13px;color:#1a1e35;"><span>SF win</span><span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;color:#d93025;">12pts</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;margin:4px -6px 0;background:rgba(184,110,0,0.09);border-radius:4px;font-size:11px;font-weight:700;color:#1a1e35;"><span>Champion</span><span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:14px;color:#b86e00;font-weight:400;">20pts</span></div>
-
+          <!-- Tier A -->
+          <div class="va4-tier-card va4-tier-card-a">
+            <div class="va4-tier-card-head">
+              <div style="display:flex;align-items:baseline;gap:10px;">
+                <span class="va4-tier-label">TIER A</span>
+                <span class="va4-tier-sub">The favorites · 8 teams</span>
+              </div>
+              <div class="va4-tier-teams">Spain · France · England · Brazil · Argentina · Portugal · Germany · Netherlands</div>
             </div>
+            <div class="va4-scoring-section">Group stage</div>
+            <div class="va4-scoring-row"><div class="va4-scoring-label">Group win</div><span class="va4-scoring-pts">+2</span></div>
+            <div class="va4-scoring-row"><div class="va4-scoring-label">Draw</div><span class="va4-scoring-pts">+1</span></div>
+            <div class="va4-scoring-row"><div class="va4-scoring-label">Win the group</div><span class="va4-scoring-pts">+1</span></div>
+            <div class="va4-scoring-row"><div class="va4-scoring-label">Advance</div><span class="va4-scoring-pts">+2</span></div>
+            <div class="va4-scoring-section">Knockouts</div>
+            <div class="va4-scoring-row"><div class="va4-scoring-label">R32 win</div><span class="va4-scoring-pts">+4</span></div>
+            <div class="va4-scoring-row"><div class="va4-scoring-label">R16 win</div><span class="va4-scoring-pts">+6</span></div>
+            <div class="va4-scoring-row"><div class="va4-scoring-label">QF win</div><span class="va4-scoring-pts">+9</span></div>
+            <div class="va4-scoring-row"><div class="va4-scoring-label">SF win</div><span class="va4-scoring-pts">+12</span></div>
+            <div class="va4-scoring-row va4-highlight"><div class="va4-scoring-label">Champion</div><span class="va4-scoring-pts">+20</span></div>
+          </div>
 
-            <!-- RIGHT: Tier B -->
-            <div style="padding:10px 10px 12px;">
-
-              <div style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;letter-spacing:0.06em;color:#0891b2;margin-bottom:3px;">TIER B</div>
-              <div style="font-size:10px;color:#8090b8;line-height:1.4;margin-bottom:7px;">All other teams</div>
-
-              <div style="font-size:10px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.07em;color:#8090b8;margin-bottom:3px;">Group Stage</div>
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #edf1f8;font-size:13px;color:#1a1e35;"><span>Group win</span><span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;color:#2563eb;">4pts</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #edf1f8;font-size:13px;color:#1a1e35;"><span>Draw</span><span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;color:#2563eb;">2pts</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #edf1f8;font-size:13px;color:#1a1e35;"><span>Win group</span><span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;color:#2563eb;">+3</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #edf1f8;font-size:13px;color:#1a1e35;"><span>Advance</span><span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;color:#2563eb;">3pts</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:13px;color:#1a1e35;"><span>Giant Killer</span><span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;color:#059669;">+5</span></div>
-              <div style="font-size:8px;color:#8090b8;font-style:italic;padding-bottom:6px;border-bottom:1px solid #edf1f8;">Beat a Tier A team in group stage</div>
-
-              <div style="font-size:10px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.07em;color:#8090b8;margin:7px 0 3px;">Knockout</div>
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #edf1f8;font-size:13px;color:#1a1e35;"><span>R32 win</span><span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;color:#d93025;">6pts</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #edf1f8;font-size:13px;color:#1a1e35;"><span>R16 win</span><span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;color:#d93025;">9pts</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #edf1f8;font-size:13px;color:#1a1e35;"><span>QF win</span><span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;color:#d93025;">12pts</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #edf1f8;font-size:13px;color:#1a1e35;"><span>SF win</span><span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;color:#d93025;">16pts</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;margin:4px -6px 0;background:rgba(184,110,0,0.09);border-radius:4px;font-size:11px;font-weight:700;color:#1a1e35;"><span>Champion</span><span style="font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:14px;color:#b86e00;font-weight:400;">20pts</span></div>
-
+          <!-- Tier B -->
+          <div class="va4-tier-card va4-tier-card-b">
+            <div class="va4-tier-card-head">
+              <div style="display:flex;align-items:baseline;gap:10px;">
+                <span class="va4-tier-label">TIER B</span>
+                <span class="va4-tier-sub">Everyone else · 40 teams</span>
+              </div>
+              <div class="va4-tier-teams">All other 40 teams</div>
             </div>
+            <div class="va4-scoring-section">Group stage</div>
+            <div class="va4-scoring-row"><div class="va4-scoring-label">Group win</div><span class="va4-scoring-pts">+4</span></div>
+            <div class="va4-scoring-row"><div class="va4-scoring-label">Draw</div><span class="va4-scoring-pts">+2</span></div>
+            <div class="va4-scoring-row"><div class="va4-scoring-label">Win the group</div><span class="va4-scoring-pts">+3</span></div>
+            <div class="va4-scoring-row"><div class="va4-scoring-label">Advance</div><span class="va4-scoring-pts">+3</span></div>
+            <div class="va4-scoring-row">
+              <div>
+                <div class="va4-scoring-label">Giant killer</div>
+                <div class="va4-scoring-sublabel">Beat a Tier A team in group stage</div>
+              </div>
+              <span class="va4-scoring-pts">+5</span>
+            </div>
+            <div class="va4-scoring-section">Knockouts</div>
+            <div class="va4-scoring-row"><div class="va4-scoring-label">R32 win</div><span class="va4-scoring-pts">+6</span></div>
+            <div class="va4-scoring-row"><div class="va4-scoring-label">R16 win</div><span class="va4-scoring-pts">+9</span></div>
+            <div class="va4-scoring-row"><div class="va4-scoring-label">QF win</div><span class="va4-scoring-pts">+12</span></div>
+            <div class="va4-scoring-row"><div class="va4-scoring-label">SF win</div><span class="va4-scoring-pts">+16</span></div>
+            <div class="va4-scoring-row va4-highlight"><div class="va4-scoring-label">Champion</div><span class="va4-scoring-pts">+20</span></div>
+          </div>
 
+        </div><!-- /tier-grid -->
+
+        <!-- Draft · Tiebreakers · Side Bets -->
+        <div class="va4-rules-misc-grid">
+          <div class="va4-misc-card">
+            <div class="va4-misc-title">THE DRAFT</div>
+            <div class="va4-misc-body">8 players, 6 rounds, 48 teams total. Round 1 everyone picks a <strong>Tier A</strong> team. Rounds 2–6 are a snake draft — order reverses each round so the last pick in Round 2 goes first in Round 3, and so on. Each player ends up with 1 Tier A and 5 Tier B teams.</div>
+          </div>
+          <div class="va4-misc-card">
+            <div class="va4-misc-title">TIEBREAKERS</div>
+            <div class="va4-misc-body">Ties broken by total wins. If still tied, the participant whose <strong>highest-seeded team advanced furthest</strong> wins. If still tied: best Tier B win pct. After that, it's a shot.</div>
+          </div>
+          <div class="va4-misc-card">
+            <div class="va4-misc-title">SIDE BETS</div>
+            <div class="va4-misc-body">Wagers logged on this site, settled off-platform. <strong>They don't touch the main standings.</strong> Honor system on stakes (beer, $20, dishes, dares).</div>
           </div>
         </div>
-
-        <div class="rules-card">
-          <div class="rules-card-header">
-            <span class="rules-icon">🎯</span>
-            <h2 class="rules-card-title">The Draft</h2>
-          </div>
-          <p class="rules-body">8 players, 6 rounds, 48 teams total. Round 1 everyone picks a Tier A team. Rounds 2–6 are a snake draft — order reverses each round so the last pick in round 2 goes first in round 3, and so on. Each player ends up with 1 Tier A team and 5 Tier B teams.</p>
-        </div>
-
-        <div class="rules-card">
-          <div class="rules-card-header">
-            <span class="rules-icon">⚖️</span>
-            <h2 class="rules-card-title">Tiebreakers</h2>
-          </div>
-          <p class="rules-body">Ties are broken by total wins. If still tied, the participant whose highest-seeded team advanced furthest wins.</p>
-        </div>
-
 
       </div>
     </div>
