@@ -65,6 +65,7 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 a { color: var(--blue); text-decoration: none; }
@@ -3696,7 +3697,7 @@ a:hover { color: var(--red); }
 /* ── Common page layout ─────────────────────────────────────────────────── */
 
 .va4-page-inner {
-  padding: 22px;
+  padding: 14px 0;
   max-width: 1280px;
   margin: 0 auto;
 }
@@ -3739,7 +3740,6 @@ a:hover { color: var(--red); }
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
-  flex-shrink: 0;
   align-items: center;
 }
 
@@ -3780,9 +3780,12 @@ a:hover { color: var(--red); }
   white-space: nowrap;
 }
 
-@media (max-width: 560px) {
-  .va4-page-head { flex-wrap: wrap; }
-  .va4-legend    { white-space: normal; }
+@media (max-width: 600px) {
+  .va4-page-head {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .va4-legend { white-space: normal; }
 }
 
 .va4-legend-dot {
@@ -4072,14 +4075,38 @@ a:hover { color: var(--red); }
 #panel-schedule .sched-match.is-live  .sched-status { color: var(--card-red); }
 #panel-schedule .sched-match.is-final .sched-status { color: var(--ink3); }
 
-@media (max-width: 520px) {
+@media (max-width: 600px) {
+  /* Stack filter chips below heading — already handled by va4-page-head column direction */
+
   #panel-schedule .sched-match {
-    grid-template-columns: 54px 1fr 54px 1fr 40px;
-    gap: 0 8px;
+    /* 5 cols: date | home | vs/score | away | status */
+    grid-template-columns: 44px 1fr 44px 1fr 44px;
+    gap: 0 6px;
     padding: 10px 12px;
   }
-  #panel-schedule .sched-tname { font-size: 11px; }
+
+  /* Allow team names to wrap so they're fully visible */
+  #panel-schedule .sched-tname {
+    font-size: 11px;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  #panel-schedule .sched-team { gap: 5px; }
+
+  #panel-schedule .sched-flag .flag-img,
+  #panel-schedule .sched-flag .flag-img-sm {
+    width: 18px !important;
+  }
+
   #panel-schedule .sched-score { font-size: 16px; }
+
+  #panel-schedule .sched-date,
+  #panel-schedule .sched-status {
+    font-size: 9px;
+    letter-spacing: 0.06em;
+  }
 }
 
 
