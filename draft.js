@@ -105,30 +105,30 @@ class DraftEngine {
   }
 
   async _loadState() {
+    const localSnap = this._lsLoad(); // snapshot before any async work
     try {
       const res  = await fetch(`https://api.github.com/gists/${CONFIG.GIST_ID}`, { headers: this._gistHeaders() });
       if (!res.ok) throw new Error(`Gist ${res.status}`);
       const gist = await res.json();
       const file = gist.files[DRAFT_FILE];
       const remote = file ? JSON.parse(file.content) : null;
-      if (remote) {
-        // Never let a stale remote state revert progress (e.g. pending → active)
-        const rank   = { pending: 0, active: 1, complete: 2 };
-        const curRnk = rank[this._state?.status] ?? -1;
-        const remRnk = rank[remote.status]       ??  0;
-        const curPks = this._state?.picks?.length ?? 0;
-        const remPks = remote.picks?.length       ?? 0;
-        if (!this._state || remRnk > curRnk || (remRnk === curRnk && remPks >= curPks)) {
-          this._state = remote;
-          this._lsSave(remote);
-        }
-      } else if (!this._state) {
-        this._state = this._lsLoad() ?? this._blank();
-      }
+
+      // Always use the most-advanced state across remote, localStorage, and current memory.
+      // This prevents a stale/empty Gist from rolling back a draft that's already in progress.
+      const rank = { pending: 0, active: 1, complete: 2 };
+      const best = [remote, localSnap, this._state]
+        .filter(s => s && s.status)           // discard null / malformed objects
+        .reduce((a, b) => {
+          const rA = rank[a.status] ?? 0, rB = rank[b.status] ?? 0;
+          const pA = a.picks?.length ?? 0,   pB = b.picks?.length ?? 0;
+          return (rB > rA || (rB === rA && pB > pA)) ? b : a;
+        }, null);
+
+      this._state = best ?? this._blank();
+      this._lsSave(this._state);
     } catch {
-      // Gist unavailable — fall back to localStorage, then blank
-      if (!this._state) this._state = this._lsLoad() ?? this._blank();
-      // If we already have a live state (e.g. mid-draft), keep it intact
+      // Gist unavailable — fall back to localStorage or blank
+      if (!this._state) this._state = localSnap ?? this._blank();
     }
   }
 
