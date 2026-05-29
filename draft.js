@@ -74,9 +74,9 @@ class DraftEngine {
     this._odds      = {};
 
     // PAT can be passed via ?pat=ghp_... so admin can write from any device.
-    // Stored in sessionStorage so it survives tab refreshes without staying in the URL.
+    // Stored in localStorage so it survives tab closes and phone suspension.
     const urlPat = params.get('pat');
-    if (urlPat) sessionStorage.setItem('draft_gist_pat', urlPat);
+    if (urlPat) localStorage.setItem('draft_gist_pat', urlPat);
   }
 
   _toggleAdmin() {
@@ -99,7 +99,7 @@ class DraftEngine {
 
   _gistHeaders() {
     const h   = { Accept: 'application/vnd.github+json' };
-    const pat = sessionStorage.getItem('draft_gist_pat') || CONFIG.GIST_PAT;
+    const pat = localStorage.getItem('draft_gist_pat') || CONFIG.GIST_PAT;
     if (pat) h.Authorization = `token ${pat}`;
     return h;
   }
@@ -142,16 +142,37 @@ class DraftEngine {
 
   async _saveState() {
     this._lsSave(this._state); // always persist locally
-    if (!CONFIG.GIST_ID || !CONFIG.GIST_PAT) return;
+    const pat = localStorage.getItem('draft_gist_pat') || CONFIG.GIST_PAT;
+    if (!CONFIG.GIST_ID || !pat) { this._warnNoWrite(); return false; }
     try {
-      await fetch(`https://api.github.com/gists/${CONFIG.GIST_ID}`, {
+      const res = await fetch(`https://api.github.com/gists/${CONFIG.GIST_ID}`, {
         method:  'PATCH',
         headers: { ...this._gistHeaders(), 'Content-Type': 'application/json' },
         body:    JSON.stringify({
           files: { [DRAFT_FILE]: { content: JSON.stringify(this._state, null, 2) } },
         }),
       });
-    } catch { /* Gist unavailable — localStorage already saved above */ }
+      if (!res.ok) { this._warnNoWrite(); return false; }
+      this._clearWriteWarn();
+      return true;
+    } catch { this._warnNoWrite(); return false; }
+  }
+
+  _warnNoWrite() {
+    if (!this._isAdmin) return;
+    let w = document.getElementById('draft-write-warn');
+    if (!w) {
+      w = document.createElement('div');
+      w.id = 'draft-write-warn';
+      w.className = 'draft-write-warn';
+      w.innerHTML = '⚠️ Picks are NOT saving to the cloud — others can\'t see them. ' +
+        'Reload with <code>?admin&amp;pat=YOUR_TOKEN</code> to fix.';
+      document.getElementById('draft-container')?.prepend(w);
+    }
+  }
+
+  _clearWriteWarn() {
+    document.getElementById('draft-write-warn')?.remove();
   }
 
   _blank() {

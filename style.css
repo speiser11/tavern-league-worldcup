@@ -4639,6 +4639,23 @@ a:hover { color: var(--red); }
   color: #fff;
 }
 
+.draft-write-warn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: #FEF3C7;
+  border: 1px solid #F59E0B;
+  color: #92400E;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+.draft-write-warn code {
+  background: rgba(0,0,0,0.08);
+  padding: 1px 4px;
+  font-size: 10px;
+  word-break: break-all;
+}
+
 #panel-draft .draft-admin-toggle { margin-top: 24px; }
 
 #panel-draft .draft-admin-toggle-btn {
