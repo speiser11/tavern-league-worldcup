@@ -54,9 +54,8 @@ const STATIC_WC26_ODDS = {
 
 // Hardcoded so it works even if config.js doesn't define the key
 // (config.js is gitignored — deployed site may not have DRAFT_GIST_FILENAME)
-const DRAFT_FILE = (typeof CONFIG !== 'undefined' && CONFIG.DRAFT_GIST_FILENAME)
-  ? CONFIG.DRAFT_GIST_FILENAME
-  : 'wc-draft-state.json';
+const DRAFT_FILE    = 'wc-draft-state.json'; // kept for legacy Gist migration only
+const DRAFT_FB_PATH = 'worldcup2026/draft';  // Firebase Realtime Database path
 
 const DRAFT_PLAYERS = [
   'Kade', 'Zach', 'Konrad', 'Cody (Left)', 'Cody (Right)', 'Scott', 'Brandon', 'Allan',
@@ -67,16 +66,23 @@ const DRAFT_TOTAL = DRAFT_N * DRAFT_RNDS; // 48
 
 class DraftEngine {
   constructor() {
-    const params    = new URLSearchParams(window.location.search);
-    this._state     = null;
-    this._isAdmin   = params.has('admin') || sessionStorage.getItem('draft_admin') === '1';
-    this._pollTimer = null;
-    this._odds      = {};
+    const params     = new URLSearchParams(window.location.search);
+    this._state      = null;
+    this._isAdmin    = params.has('admin') || sessionStorage.getItem('draft_admin') === '1';
+    this._odds       = {};
+    this._db         = null;
+    this._fbCallback = null;
+    this._pollTimer  = null; // fallback only (used if Firebase unavailable)
 
-    // PAT can be passed via ?pat=ghp_... so admin can write from any device.
-    // Stored in localStorage so it survives tab closes and phone suspension.
-    const urlPat = params.get('pat');
-    if (urlPat) localStorage.setItem('draft_gist_pat', urlPat);
+    // Initialize Firebase Realtime Database
+    try {
+      if (typeof firebase !== 'undefined' && CONFIG.FIREBASE_CONFIG) {
+        if (!firebase.apps.length) firebase.initializeApp(CONFIG.FIREBASE_CONFIG);
+        this._db = firebase.database();
+      }
+    } catch (e) {
+      console.warn('Firebase init failed:', e);
+    }
   }
 
   _toggleAdmin() {
@@ -90,34 +96,25 @@ class DraftEngine {
     await this._loadOdds();
     applyDraftToParticipants(this._state.picks);
     this._render();
-    this._startPolling(); // always poll — picks up draft start even if loaded before it began
-    // Admin: push local state to Gist on load so others see it immediately
+    this._startPolling(); // real-time listener — picks up changes from any device instantly
+    // Admin: if local state is ahead of Firebase (e.g. after migration), sync it up
     if (this._isAdmin && this._state.status !== 'pending') await this._saveState();
   }
 
-  // ── Gist I/O ────────────────────────────────────────────────────────────────
-
-  _gistHeaders() {
-    const h   = { Accept: 'application/vnd.github+json' };
-    const pat = localStorage.getItem('draft_gist_pat') || CONFIG.GIST_PAT;
-    if (pat) h.Authorization = `token ${pat}`;
-    return h;
-  }
+  // ── Firebase I/O ─────────────────────────────────────────────────────────────
 
   async _loadState() {
-    const localSnap = this._lsLoad(); // snapshot before any async work
+    const localSnap = this._lsLoad();
     try {
-      const res  = await fetch(`https://api.github.com/gists/${CONFIG.GIST_ID}`, { headers: this._gistHeaders() });
-      if (!res.ok) throw new Error(`Gist ${res.status}`);
-      const gist = await res.json();
-      const file = gist.files[DRAFT_FILE];
-      const remote = file ? JSON.parse(file.content) : null;
+      if (!this._db) throw new Error('Firebase unavailable');
+      const snap   = await this._db.ref(DRAFT_FB_PATH).get();
+      const remote = snap.exists() ? snap.val() : null;
 
-      // Always use the most-advanced state across remote, localStorage, and current memory.
-      // This prevents a stale/empty Gist from rolling back a draft that's already in progress.
+      // Use whichever state is furthest along: Firebase vs localStorage.
+      // Handles migration from Gist: if Firebase is empty but local has picks, keep picks.
       const rank = { pending: 0, active: 1, complete: 2 };
-      const best = [remote, localSnap, this._state]
-        .filter(s => s && s.status)           // discard null / malformed objects
+      const best = [remote, localSnap]
+        .filter(s => s?.status)
         .reduce((a, b) => {
           const rA = rank[a.status] ?? 0, rB = rank[b.status] ?? 0;
           const pA = a.picks?.length ?? 0,   pB = b.picks?.length ?? 0;
@@ -127,8 +124,7 @@ class DraftEngine {
       this._state = best ?? this._blank();
       this._lsSave(this._state);
     } catch {
-      // Gist unavailable — fall back to localStorage or blank
-      if (!this._state) this._state = localSnap ?? this._blank();
+      this._state = localSnap ?? this._blank();
     }
   }
 
@@ -141,21 +137,18 @@ class DraftEngine {
   }
 
   async _saveState() {
-    this._lsSave(this._state); // always persist locally
-    const pat = localStorage.getItem('draft_gist_pat') || CONFIG.GIST_PAT;
-    if (!CONFIG.GIST_ID || !pat) { this._warnNoWrite(); return false; }
+    this._lsSave(this._state); // always persist locally as backup
+    if (!this._isAdmin) return false;
+    if (!this._db) { this._warnNoWrite(); return false; }
     try {
-      const res = await fetch(`https://api.github.com/gists/${CONFIG.GIST_ID}`, {
-        method:  'PATCH',
-        headers: { ...this._gistHeaders(), 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          files: { [DRAFT_FILE]: { content: JSON.stringify(this._state, null, 2) } },
-        }),
-      });
-      if (!res.ok) { this._warnNoWrite(); return false; }
+      await this._db.ref(DRAFT_FB_PATH).set(this._state);
       this._clearWriteWarn();
       return true;
-    } catch { this._warnNoWrite(); return false; }
+    } catch (e) {
+      console.warn('Firebase write failed:', e);
+      this._warnNoWrite();
+      return false;
+    }
   }
 
   _warnNoWrite() {
@@ -165,8 +158,7 @@ class DraftEngine {
       w = document.createElement('div');
       w.id = 'draft-write-warn';
       w.className = 'draft-write-warn';
-      w.innerHTML = '⚠️ Picks are NOT saving to the cloud — others can\'t see them. ' +
-        'Reload with <code>?admin&amp;pat=YOUR_TOKEN</code> to fix.';
+      w.innerHTML = '⚠️ Picks are NOT saving — Firebase connection failed. Check your connection and reload.';
       document.getElementById('draft-container')?.prepend(w);
     }
   }
@@ -298,23 +290,67 @@ class DraftEngine {
     this._renderOrderList();
   }
 
-  // ── Polling (non-admin spectator view) ────────────────────────────────────────
+  // ── Real-time listener ────────────────────────────────────────────────────────
 
   _startPolling() {
+    // Clean up any existing listener / timer
+    if (this._db && this._fbCallback) {
+      this._db.ref(DRAFT_FB_PATH).off('value', this._fbCallback);
+      this._fbCallback = null;
+    }
     clearInterval(this._pollTimer);
-    this._pollTimer = setInterval(async () => {
-      const prevPicks  = this._state.picks?.length ?? 0;
-      const prevStatus = this._state.status;
-      await this._loadState();
-      const newPicks  = this._state.picks?.length ?? 0;
-      const newStatus = this._state.status;
-      // Re-render whenever anything changes (new pick, draft started, draft complete)
+
+    if (!this._db) {
+      // Firebase unavailable — fall back to 5-second polling
+      this._pollTimer = setInterval(async () => {
+        const prevPicks  = this._state.picks?.length ?? 0;
+        const prevStatus = this._state.status;
+        await this._loadState();
+        const newPicks  = this._state.picks?.length ?? 0;
+        const newStatus = this._state.status;
+        if (newPicks !== prevPicks || newStatus !== prevStatus) {
+          applyDraftToParticipants(this._state.picks);
+          this._render();
+        }
+        if (newStatus === 'complete') clearInterval(this._pollTimer);
+      }, 5000);
+      return;
+    }
+
+    // Firebase onValue: fires immediately with current value, then on every change
+    this._fbCallback = (snap) => {
+      const remote = snap.exists() ? snap.val() : null;
+      if (!remote?.status) return;
+
+      const prevPicks  = this._state?.picks?.length ?? 0;
+      const prevStatus = this._state?.status;
+
+      const rank   = { pending: 0, active: 1, complete: 2 };
+      const curRnk = rank[this._state?.status] ?? -1;
+      const remRnk = rank[remote.status] ?? 0;
+      const curPks = this._state?.picks?.length ?? 0;
+      const remPks = remote.picks?.length ?? 0;
+
+      if (remRnk > curRnk || (remRnk === curRnk && remPks >= curPks)) {
+        this._state = remote;
+        this._lsSave(remote);
+      }
+
+      const newPicks  = this._state?.picks?.length ?? 0;
+      const newStatus = this._state?.status;
+
       if (newPicks !== prevPicks || newStatus !== prevStatus) {
         applyDraftToParticipants(this._state.picks);
         this._render();
       }
-      if (newStatus === 'complete') clearInterval(this._pollTimer);
-    }, 5000);
+
+      if (newStatus === 'complete') {
+        this._db.ref(DRAFT_FB_PATH).off('value', this._fbCallback);
+        this._fbCallback = null;
+      }
+    };
+
+    this._db.ref(DRAFT_FB_PATH).on('value', this._fbCallback);
   }
 
   // ── Render ────────────────────────────────────────────────────────────────────
