@@ -156,8 +156,8 @@ class DraftEngine {
       return;
     }
     if (!CONFIG.ODDS_API_KEY) {
-      // No API key — fall back to static odds so cards always show something
-      this._odds = { ...STATIC_WC26_ODDS };
+      // No API key — use static odds, but keep any cached values that exist
+      this._odds = { ...STATIC_WC26_ODDS, ...this._state.odds };
       this._state.odds = this._odds;
       this._state.oddsUpdatedAt = Date.now();
       return;
@@ -183,10 +183,8 @@ class DraftEngine {
         break;
       } catch { /* try next key */ }
     }
-    // If all API calls failed, use static odds as final fallback
-    if (!Object.keys(this._odds).length) {
-      this._odds = { ...STATIC_WC26_ODDS };
-    }
+    // Fill any gaps with static odds (covers teams the API missed)
+    this._odds = { ...STATIC_WC26_ODDS, ...this._odds };
   }
 
   _parseOdds(events) {
