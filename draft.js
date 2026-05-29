@@ -67,11 +67,16 @@ const DRAFT_TOTAL = DRAFT_N * DRAFT_RNDS; // 48
 
 class DraftEngine {
   constructor() {
+    const params    = new URLSearchParams(window.location.search);
     this._state     = null;
-    this._isAdmin   = new URLSearchParams(window.location.search).has('admin') ||
-                      sessionStorage.getItem('draft_admin') === '1';
+    this._isAdmin   = params.has('admin') || sessionStorage.getItem('draft_admin') === '1';
     this._pollTimer = null;
     this._odds      = {};
+
+    // PAT can be passed via ?pat=ghp_... so admin can write from any device.
+    // Stored in sessionStorage so it survives tab refreshes without staying in the URL.
+    const urlPat = params.get('pat');
+    if (urlPat) sessionStorage.setItem('draft_gist_pat', urlPat);
   }
 
   _toggleAdmin() {
@@ -93,8 +98,9 @@ class DraftEngine {
   // ── Gist I/O ────────────────────────────────────────────────────────────────
 
   _gistHeaders() {
-    const h = { Accept: 'application/vnd.github+json' };
-    if (CONFIG.GIST_PAT) h.Authorization = `token ${CONFIG.GIST_PAT}`;
+    const h   = { Accept: 'application/vnd.github+json' };
+    const pat = sessionStorage.getItem('draft_gist_pat') || CONFIG.GIST_PAT;
+    if (pat) h.Authorization = `token ${pat}`;
     return h;
   }
 
