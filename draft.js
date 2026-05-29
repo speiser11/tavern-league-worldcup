@@ -319,15 +319,112 @@ class DraftEngine {
   _renderOrderList(el) {
     el = el || document.getElementById('draft-order-list');
     if (!el) return;
-    el.innerHTML = `
-      <div class="draft-order-title">Round 1 order</div>
-      <div class="draft-order-pills">
-        ${this._state.draftOrder.map((n, i) => {
-          const c = OWNER_COLORS[n] || '#8090b8';
-          return `<span class="draft-order-pill" style="border-color:${c};color:${c}">${i+1}. ${escHtml(n)}</span>`;
-        }).join('')}
-      </div>
-    `;
+    el.innerHTML = '';
+
+    const title = document.createElement('div');
+    title.className = 'draft-order-title';
+    title.textContent = 'Round 1 order — drag or use arrows to reorder';
+    el.appendChild(title);
+
+    const list = document.createElement('ol');
+    list.className = 'draft-order-rows';
+
+    this._state.draftOrder.forEach((name, i) => {
+      const color = OWNER_COLORS[name] || '#8090b8';
+      const row   = document.createElement('li');
+      row.className    = 'draft-order-row';
+      row.draggable    = true;
+      row.dataset.idx  = i;
+
+      const handle = document.createElement('span');
+      handle.className  = 'draft-order-handle';
+      handle.textContent = '⠿';
+      handle.setAttribute('aria-hidden', 'true');
+
+      const num = document.createElement('span');
+      num.className   = 'draft-order-num';
+      num.textContent = i + 1;
+      num.style.color = color;
+
+      const nameEl = document.createElement('span');
+      nameEl.className   = 'draft-order-name';
+      nameEl.textContent = name;
+      nameEl.style.color = color;
+
+      const arrows = document.createElement('span');
+      arrows.className = 'draft-order-arrows';
+
+      if (i > 0) {
+        const up = document.createElement('button');
+        up.className   = 'draft-arrow-btn';
+        up.textContent = '↑';
+        up.title       = 'Move up';
+        up.onclick     = () => this._moveOrder(i, i - 1);
+        arrows.appendChild(up);
+      }
+      if (i < this._state.draftOrder.length - 1) {
+        const dn = document.createElement('button');
+        dn.className   = 'draft-arrow-btn';
+        dn.textContent = '↓';
+        dn.title       = 'Move down';
+        dn.onclick     = () => this._moveOrder(i, i + 1);
+        arrows.appendChild(dn);
+      }
+
+      row.append(handle, num, nameEl, arrows);
+      list.appendChild(row);
+    });
+
+    el.appendChild(list);
+    this._setupOrderDrag(list);
+  }
+
+  _moveOrder(fromIdx, toIdx) {
+    const order = [...this._state.draftOrder];
+    const [moved] = order.splice(fromIdx, 1);
+    order.splice(toIdx, 0, moved);
+    this._state.draftOrder = order;
+    this._renderOrderList();
+  }
+
+  _setupOrderDrag(list) {
+    let dragSrc = null;
+
+    list.addEventListener('dragstart', e => {
+      const row = e.target.closest('.draft-order-row');
+      if (!row) return;
+      dragSrc = parseInt(row.dataset.idx);
+      row.classList.add('dor-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+
+    list.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      list.querySelectorAll('.dor-over').forEach(r => r.classList.remove('dor-over'));
+      const row = e.target.closest('.draft-order-row');
+      if (row && parseInt(row.dataset.idx) !== dragSrc) row.classList.add('dor-over');
+    });
+
+    list.addEventListener('dragleave', e => {
+      if (!list.contains(e.relatedTarget))
+        list.querySelectorAll('.dor-over').forEach(r => r.classList.remove('dor-over'));
+    });
+
+    list.addEventListener('drop', e => {
+      e.preventDefault();
+      const row = e.target.closest('.draft-order-row');
+      if (!row) return;
+      const overIdx = parseInt(row.dataset.idx);
+      if (dragSrc === null || dragSrc === overIdx) return;
+      this._moveOrder(dragSrc, overIdx);
+    });
+
+    list.addEventListener('dragend', () => {
+      list.querySelectorAll('.dor-dragging, .dor-over').forEach(r =>
+        r.classList.remove('dor-dragging', 'dor-over'));
+      dragSrc = null;
+    });
   }
 
   // ── Draft board table ─────────────────────────────────────────────────────────

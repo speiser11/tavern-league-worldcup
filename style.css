@@ -4522,16 +4522,91 @@ a:hover { color: var(--red); }
 #panel-draft .draft-order-title {
   font-family: var(--font-mono);
   font-size: 9px;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink3);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
-#panel-draft .draft-order-pill {
-  border-radius: 0;
+/* Order rows (replaces pill layout) */
+#panel-draft .draft-order-rows {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+#panel-draft .draft-order-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  cursor: grab;
+  user-select: none;
+  transition: background 0.1s, opacity 0.1s;
+}
+#panel-draft .draft-order-row:active { cursor: grabbing; }
+
+#panel-draft .draft-order-row.dor-dragging {
+  opacity: 0.4;
+}
+#panel-draft .draft-order-row.dor-over {
+  background: var(--bg-card-alt);
+  border-color: var(--pitch);
+  outline: 2px solid var(--pitch);
+  outline-offset: -1px;
+}
+
+#panel-draft .draft-order-handle {
+  font-size: 16px;
+  color: var(--ink3);
+  line-height: 1;
+  cursor: grab;
+}
+
+#panel-draft .draft-order-num {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 18px;
+}
+
+#panel-draft .draft-order-name {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  flex: 1;
+}
+
+#panel-draft .draft-order-arrows {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+#panel-draft .draft-arrow-btn {
+  background: none;
+  border: 1px solid var(--border-mid);
+  color: var(--ink2);
+  font-size: 12px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 0;
+  line-height: 1;
+  padding: 0;
+}
+#panel-draft .draft-arrow-btn:hover {
+  background: var(--pitch);
+  border-color: var(--pitch);
+  color: #fff;
 }
 
 #panel-draft .draft-admin-toggle { margin-top: 24px; }
