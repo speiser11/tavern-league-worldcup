@@ -644,11 +644,21 @@ class DraftEngine {
 
     if (isPicked && pickerColor) {
       const [r, g, b] = [1, 3, 5].map(i => parseInt(pickerColor.slice(i, i + 2), 16));
-      card.style.background  = `rgba(${r},${g},${b},0.09)`;
-      card.style.borderColor = `rgba(${r},${g},${b},0.35)`;
+      card.style.background    = `rgba(${r},${g},${b},0.10)`;
+      card.style.borderColor   = `rgba(${r},${g},${b},0.50)`;
+      card.style.borderLeftWidth = '4px';
     }
 
     const showPickBtn = !isPicked && this._isAdmin && this._state.status === 'active';
+
+    // Build the right-column: owner badge if taken, odds + pick button if available
+    const rightCol = isPicked && pickerName
+      ? `<span class="dc-owner-badge" style="color:${pickerColor};border-color:${pickerColor}55">
+           ${escHtml(pickerName)}<span class="dc-owner-pick"> · #${pickNum}</span>
+         </span>
+         <span class="dc-odds dc-odds-taken">${escHtml(odds)}</span>`
+      : `<span class="dc-odds">${escHtml(odds)}</span>
+         ${showPickBtn ? `<button class="dc-pick-btn">Pick</button>` : ''}`;
 
     card.innerHTML = `
       <div class="dc-flag">${flag}</div>
@@ -656,14 +666,7 @@ class DraftEngine {
         <span class="dc-name">${escHtml(team)}</span>
         <span class="dc-tier ${isTierA ? 'tier-a-pill' : 'tier-b-pill'}">${isTierA ? 'Tier A' : 'Tier B'}</span>
       </div>
-      <div class="dc-right">
-        <span class="dc-odds">${escHtml(odds)}</span>
-        ${isPicked && pickerName
-          ? `<span class="dc-owner" style="color:${pickerColor}">${escHtml(pickerName)}</span>
-             <span class="dc-pick-num">#${pickNum}</span>`
-          : ''}
-        ${showPickBtn ? `<button class="dc-pick-btn">Pick</button>` : ''}
-      </div>
+      <div class="dc-right">${rightCol}</div>
     `;
 
     if (showPickBtn) {

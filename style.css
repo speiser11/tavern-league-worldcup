@@ -4474,6 +4474,33 @@ a:hover { color: var(--red); }
   letter-spacing: 0.06em;
 }
 
+/* Owner badge — shown on picked cards instead of (or above) odds */
+#panel-draft .dc-owner-badge {
+  font-family: 'Anton', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid;
+  padding: 2px 7px;
+  white-space: nowrap;
+  line-height: 1.6;
+}
+
+#panel-draft .dc-owner-pick {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  opacity: 0.7;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Odds shown smaller beneath the owner badge on taken cards */
+#panel-draft .dc-odds-taken {
+  font-size: 10px;
+  color: var(--ink3);
+}
+
 #panel-draft .dc-pick-btn {
   font-family: var(--font-mono);
   font-size: 10px;
