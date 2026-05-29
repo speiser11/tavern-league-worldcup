@@ -4,7 +4,7 @@
 const CONFIG = {
 
   GIST_ID:               '935c07fbd48d4adff60dec07ba2f3218',
-  GIST_PAT:              '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',
+  GIST_PAT:              '',   // DO NOT COMMIT a real token — GitHub auto-revokes it from public repos
   GIST_FILENAME:         'worldcup-matches.json',
   DRAFT_GIST_FILENAME:   'wc-draft-state.json',
 
