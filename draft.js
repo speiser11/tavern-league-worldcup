@@ -107,7 +107,10 @@ class DraftEngine {
     const localSnap = this._lsLoad();
     try {
       if (!this._db) throw new Error('Firebase unavailable');
-      const snap   = await this._db.ref(DRAFT_FB_PATH).get();
+      const snap = await Promise.race([
+        this._db.ref(DRAFT_FB_PATH).get(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase timeout')), 5000)),
+      ]);
       const remote = snap.exists() ? snap.val() : null;
 
       // Use whichever state is furthest along: Firebase vs localStorage.
