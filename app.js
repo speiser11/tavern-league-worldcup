@@ -965,6 +965,7 @@ class ScoringEngine {
 
       const section = document.createElement('div');
       section.className = 'sched-section';
+      section.dataset.roundType = round === 'group' ? 'group' : 'knockout';
 
       const rh = document.createElement('div');
       rh.className = 'sched-round-header';

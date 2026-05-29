@@ -4,6 +4,9 @@
    Fonts: Bebas Neue (scores/ranks) + DM Mono (labels) + Inter (body)
 ───────────────────────────────────────────────────────────────────────────── */
 
+/* Ensure [hidden] always wins even when author CSS sets display:flex/grid */
+[hidden] { display: none !important; }
+
 /* ── Design tokens ────────────────────────────────────────────────────────── */
 :root {
   /* Backgrounds */

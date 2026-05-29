@@ -677,6 +677,72 @@ function initTabs() {
       });
     });
   });
+
+  _initChipFilters();
+}
+
+// ── Chip filters (Wire + Schedule) ─────────────────────────────────────────────
+
+function _initChipFilters() {
+  // Wire filter chips
+  const wireChips = document.querySelectorAll('#panel-wire .va4-chip');
+  wireChips.forEach(chip => chip.addEventListener('click', () => {
+    wireChips.forEach(c => c.classList.remove('va4-chip-active'));
+    chip.classList.add('va4-chip-active');
+    _applyWireFilter(chip.textContent.trim());
+  }));
+
+  // Schedule filter chips
+  const schedChips = document.querySelectorAll('#panel-schedule .va4-chip');
+  schedChips.forEach(chip => chip.addEventListener('click', () => {
+    schedChips.forEach(c => c.classList.remove('va4-chip-active'));
+    chip.classList.add('va4-chip-active');
+    _applyScheduleFilter(chip.textContent.trim());
+  }));
+}
+
+function _applyWireFilter(label) {
+  const WIN_EVENTS = new Set(['group_win', 'round_of_32', 'round_of_16',
+                               'quarterfinal', 'semifinal', 'champion', 'giant_killer']);
+  const ADV_EVENTS = new Set(['group_advance', 'group_1st']);
+  const KO_EVENTS  = new Set(['round_of_32', 'round_of_16',
+                               'quarterfinal', 'semifinal', 'champion']);
+
+  for (const item of document.querySelectorAll('#feed-container .feed-item')) {
+    const ev = item.dataset.event;
+    let show = true;
+    if      (label === 'Wins')      show = WIN_EVENTS.has(ev);
+    else if (label === 'Advances')  show = ADV_EVENTS.has(ev);
+    else if (label === 'Knockouts') show = KO_EVENTS.has(ev);
+    item.style.display = show ? '' : 'none';
+  }
+}
+
+function _applyScheduleFilter(label) {
+  const container = document.getElementById('schedule-container');
+  if (!container) return;
+
+  for (const section of container.querySelectorAll('.sched-section')) {
+    const rt = section.dataset.roundType || '';
+
+    // Decide whether to show this section at all
+    if (label === 'Group stage'  && rt !== 'group')   { section.style.display = 'none'; continue; }
+    if (label === 'Knockouts'    && rt !== 'knockout') { section.style.display = 'none'; continue; }
+    section.style.display = '';
+
+    // For "Live + upcoming", also hide finished matches inside visible sections
+    const rows = section.querySelectorAll('.sched-match');
+    let anyVisible = false;
+    for (const row of rows) {
+      const isLive     = row.classList.contains('is-live');
+      const isFinished = row.classList.contains('is-final');
+      const show = label !== 'Live + upcoming' || isLive || !isFinished;
+      row.style.display = show ? '' : 'none';
+      if (show) anyVisible = true;
+    }
+    // Hide the whole section if "Live + upcoming" left nothing in it
+    if (label === 'Live + upcoming' && !anyVisible) section.style.display = 'none';
+  }
 }
 
 // ── Rank persistence ───────────────────────────────────────────────────────────
