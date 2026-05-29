@@ -86,6 +86,8 @@ class DraftEngine {
     applyDraftToParticipants(this._state.picks);
     this._render();
     this._startPolling(); // always poll — picks up draft start even if loaded before it began
+    // Admin: push local state to Gist on load so others see it immediately
+    if (this._isAdmin && this._state.status !== 'pending') await this._saveState();
   }
 
   // ── Gist I/O ────────────────────────────────────────────────────────────────
