@@ -94,6 +94,7 @@ class DraftEngine {
   async init() {
     await this._loadState();
     await this._loadOdds();
+    if (!Array.isArray(this._state.picks)) this._state.picks = [];
     applyDraftToParticipants(this._state.picks);
     this._render();
     this._startPolling(); // real-time listener — picks up changes from any device instantly
@@ -116,13 +117,13 @@ class DraftEngine {
       // Use whichever state is furthest along: Firebase vs localStorage.
       // Handles migration from Gist: if Firebase is empty but local has picks, keep picks.
       const rank = { pending: 0, active: 1, complete: 2 };
-      const best = [remote, localSnap]
-        .filter(s => s?.status)
-        .reduce((a, b) => {
-          const rA = rank[a.status] ?? 0, rB = rank[b.status] ?? 0;
-          const pA = a.picks?.length ?? 0,   pB = b.picks?.length ?? 0;
-          return (rB > rA || (rB === rA && pB > pA)) ? b : a;
-        }, null);
+      const candidates = [remote, localSnap].filter(s => s?.status);
+      const best = candidates.reduce((a, b) => {
+        if (!a) return b;
+        const rA = rank[a.status] ?? 0, rB = rank[b.status] ?? 0;
+        const pA = a.picks?.length ?? 0,   pB = b.picks?.length ?? 0;
+        return (rB > rA || (rB === rA && pB > pA)) ? b : a;
+      }, null);
 
       this._state = best ?? this._blank();
       this._lsSave(this._state);
