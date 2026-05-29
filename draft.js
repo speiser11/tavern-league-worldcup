@@ -1,7 +1,7 @@
 /**
  * draft.js — Snake draft board
  *
- * State lives in a Gist file (CONFIG.DRAFT_GIST_FILENAME).
+ * State lives in a Gist file (DRAFT_FILE).
  * Admin mode: add ?admin to the URL — no password, friends-only app.
  * Non-admins poll every 5 s during an active draft and see the board update live.
  */
@@ -52,6 +52,12 @@ const STATIC_WC26_ODDS = {
   'Panama':        '+10000',
 };
 
+// Hardcoded so it works even if config.js doesn't define the key
+// (config.js is gitignored — deployed site may not have DRAFT_GIST_FILENAME)
+const DRAFT_FILE = (typeof CONFIG !== 'undefined' && DRAFT_FILE)
+  ? DRAFT_FILE
+  : 'wc-draft-state.json';
+
 const DRAFT_PLAYERS = [
   'Kade', 'Zach', 'Konrad', 'Cody (Left)', 'Cody (Right)', 'Scott', 'Brandon', 'Allan',
 ];
@@ -79,7 +85,7 @@ class DraftEngine {
     await this._loadOdds();
     applyDraftToParticipants(this._state.picks);
     this._render();
-    if (this._state.status === 'active') this._startPolling();
+    this._startPolling(); // always poll — picks up draft start even if loaded before it began
   }
 
   // ── Gist I/O ────────────────────────────────────────────────────────────────
@@ -95,7 +101,7 @@ class DraftEngine {
       const res  = await fetch(`https://api.github.com/gists/${CONFIG.GIST_ID}`, { headers: this._gistHeaders() });
       if (!res.ok) throw new Error(`Gist ${res.status}`);
       const gist = await res.json();
-      const file = gist.files[CONFIG.DRAFT_GIST_FILENAME];
+      const file = gist.files[DRAFT_FILE];
       const remote = file ? JSON.parse(file.content) : null;
       if (remote) {
         // Never let a stale remote state revert progress (e.g. pending → active)
@@ -134,7 +140,7 @@ class DraftEngine {
         method:  'PATCH',
         headers: { ...this._gistHeaders(), 'Content-Type': 'application/json' },
         body:    JSON.stringify({
-          files: { [CONFIG.DRAFT_GIST_FILENAME]: { content: JSON.stringify(this._state, null, 2) } },
+          files: { [DRAFT_FILE]: { content: JSON.stringify(this._state, null, 2) } },
         }),
       });
     } catch { /* Gist unavailable — localStorage already saved above */ }
@@ -268,13 +274,17 @@ class DraftEngine {
   _startPolling() {
     clearInterval(this._pollTimer);
     this._pollTimer = setInterval(async () => {
-      const before = this._state.picks?.length ?? 0;
+      const prevPicks  = this._state.picks?.length ?? 0;
+      const prevStatus = this._state.status;
       await this._loadState();
-      if ((this._state.picks?.length ?? 0) !== before) {
+      const newPicks  = this._state.picks?.length ?? 0;
+      const newStatus = this._state.status;
+      // Re-render whenever anything changes (new pick, draft started, draft complete)
+      if (newPicks !== prevPicks || newStatus !== prevStatus) {
         applyDraftToParticipants(this._state.picks);
         this._render();
       }
-      if (this._state.status !== 'active') clearInterval(this._pollTimer);
+      if (newStatus === 'complete') clearInterval(this._pollTimer);
     }, 5000);
   }
 
