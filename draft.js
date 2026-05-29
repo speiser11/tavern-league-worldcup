@@ -54,8 +54,8 @@ const STATIC_WC26_ODDS = {
 
 // Hardcoded so it works even if config.js doesn't define the key
 // (config.js is gitignored — deployed site may not have DRAFT_GIST_FILENAME)
-const DRAFT_FILE = (typeof CONFIG !== 'undefined' && DRAFT_FILE)
-  ? DRAFT_FILE
+const DRAFT_FILE = (typeof CONFIG !== 'undefined' && CONFIG.DRAFT_GIST_FILENAME)
+  ? CONFIG.DRAFT_GIST_FILENAME
   : 'wc-draft-state.json';
 
 const DRAFT_PLAYERS = [
