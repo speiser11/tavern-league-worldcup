@@ -126,7 +126,9 @@ class DraftEngine {
 
       this._state = best ?? this._blank();
       this._lsSave(this._state);
-    } catch {
+    } catch (e) {
+      console.warn('Draft _loadState:', e.message);
+      if (e.message === 'Firebase timeout') this._db = null; // disable so listener doesn't retry dead connection
       this._state = localSnap ?? this._blank();
     }
   }
@@ -353,7 +355,9 @@ class DraftEngine {
       }
     };
 
-    this._db.ref(DRAFT_FB_PATH).on('value', this._fbCallback);
+    this._db.ref(DRAFT_FB_PATH).on('value', this._fbCallback, (err) => {
+      console.warn('Firebase listener error:', err.message);
+    });
   }
 
   // ── Render ────────────────────────────────────────────────────────────────────
