@@ -86,6 +86,10 @@ class DraftEngine {
   }
 
   _toggleAdmin() {
+    if (!this._isAdmin && CONFIG.ADMIN_PASSWORD) {
+      const input = prompt('Admin PIN:');
+      if (input !== String(CONFIG.ADMIN_PASSWORD)) return;
+    }
     this._isAdmin = !this._isAdmin;
     sessionStorage.setItem('draft_admin', this._isAdmin ? '1' : '0');
     this._render();

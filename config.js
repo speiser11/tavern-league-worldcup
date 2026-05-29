@@ -23,7 +23,7 @@ const CONFIG = {
     appId:             '1:1052306163287:web:6f401637891dcf79560512',
   },
 
-  ADMIN_PASSWORD:        '',
+  ADMIN_PASSWORD:        '3261',
   APP_TITLE:             '2026 World Cup Fantasy',
   SITE_URL:              'https://loganthein.github.io/worldcup-elite-fantasy/',
 };
