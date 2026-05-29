@@ -151,11 +151,15 @@ class DraftEngine {
     if (!this._isAdmin) return false;
     if (!this._db) { this._warnNoWrite(); return false; }
     try {
-      await this._db.ref(DRAFT_FB_PATH).set(this._state);
+      await Promise.race([
+        this._db.ref(DRAFT_FB_PATH).set(this._state),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase timeout')), 5000)),
+      ]);
       this._clearWriteWarn();
       return true;
     } catch (e) {
-      console.warn('Firebase write failed:', e);
+      console.warn('Firebase write failed:', e.message);
+      if (e.message === 'Firebase timeout') this._db = null;
       this._warnNoWrite();
       return false;
     }
