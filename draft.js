@@ -6,6 +6,29 @@
  * Non-admins poll every 5 s during an active draft and see the board update live.
  */
 
+// Static fallback odds (used when ODDS_API_KEY is absent or cache is empty)
+const STATIC_WC26_ODDS = {
+  'Brazil':        '+450',  'Argentina':     '+500',
+  'France':        '+500',  'England':       '+550',
+  'Spain':         '+550',  'Germany':       '+650',
+  'Portugal':      '+800',  'Netherlands':   '+900',
+  'USA':           '+1800', 'Japan':         '+2000',
+  'Morocco':       '+2200', 'Colombia':      '+2500',
+  'Uruguay':       '+2500', 'Mexico':        '+3000',
+  'Croatia':       '+3000', 'Denmark':       '+3000',
+  'Switzerland':   '+3000', 'Belgium':       '+2800',
+  'South Korea':   '+3500', 'Turkey':        '+3500',
+  'Ecuador':       '+4000', 'Canada':        '+4000',
+  'Serbia':        '+4000', 'Poland':        '+4500',
+  'Australia':     '+5000', 'Senegal':       '+5000',
+  'Ukraine':       '+5000', 'Saudi Arabia':  '+6000',
+  'Ghana':         '+6000', 'Cameroon':      '+7000',
+  'Iran':          '+7000', 'Costa Rica':    '+8000',
+  'Paraguay':      '+6000', 'Egypt':         '+7000',
+  'Algeria':       '+6000', 'Nigeria':       '+5500',
+  'Ivory Coast':   '+5500', 'South Africa':  '+8000',
+};
+
 const DRAFT_PLAYERS = [
   'Kade', 'Zach', 'Konrad', 'Cody (Left)', 'Cody (Right)', 'Scott', 'Brandon', 'Allan',
 ];
@@ -52,8 +75,16 @@ class DraftEngine {
       const file = gist.files[CONFIG.DRAFT_GIST_FILENAME];
       const remote = file ? JSON.parse(file.content) : null;
       if (remote) {
-        this._state = remote;
-        this._lsSave(remote);   // keep localStorage in sync
+        // Never let a stale remote state revert progress (e.g. pending → active)
+        const rank   = { pending: 0, active: 1, complete: 2 };
+        const curRnk = rank[this._state?.status] ?? -1;
+        const remRnk = rank[remote.status]       ??  0;
+        const curPks = this._state?.picks?.length ?? 0;
+        const remPks = remote.picks?.length       ?? 0;
+        if (!this._state || remRnk > curRnk || (remRnk === curRnk && remPks >= curPks)) {
+          this._state = remote;
+          this._lsSave(remote);
+        }
       } else if (!this._state) {
         this._state = this._lsLoad() ?? this._blank();
       }
@@ -93,13 +124,21 @@ class DraftEngine {
   // ── Odds ─────────────────────────────────────────────────────────────────────
 
   async _loadOdds() {
-    // Use cached odds from Gist if < 6 hours old
-    if (this._state.odds && this._state.oddsUpdatedAt &&
-        Date.now() - this._state.oddsUpdatedAt < 6 * 3_600_000) {
+    // Use cached odds if they have data and are fresh (or no API key to refresh with)
+    const cachedHasData = this._state.odds && Object.keys(this._state.odds).length > 0;
+    const cacheAge      = Date.now() - (this._state.oddsUpdatedAt || 0);
+    const cacheFresh    = cacheAge < 6 * 3_600_000;
+    if (cachedHasData && (!CONFIG.ODDS_API_KEY || cacheFresh)) {
       this._odds = this._state.odds;
       return;
     }
-    if (!CONFIG.ODDS_API_KEY) return;
+    if (!CONFIG.ODDS_API_KEY) {
+      // No API key — fall back to static odds so cards always show something
+      this._odds = { ...STATIC_WC26_ODDS };
+      this._state.odds = this._odds;
+      this._state.oddsUpdatedAt = Date.now();
+      return;
+    }
 
     const sportKeys = [
       'soccer_fifa_world_cup_winner',
@@ -120,6 +159,10 @@ class DraftEngine {
         if (this._isAdmin) await this._saveState(); // cache for non-admins too
         break;
       } catch { /* try next key */ }
+    }
+    // If all API calls failed, use static odds as final fallback
+    if (!Object.keys(this._odds).length) {
+      this._odds = { ...STATIC_WC26_ODDS };
     }
   }
 
