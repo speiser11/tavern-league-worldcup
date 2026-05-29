@@ -66,23 +66,15 @@ const DRAFT_TOTAL = DRAFT_N * DRAFT_RNDS; // 48
 
 class DraftEngine {
   constructor() {
-    const params     = new URLSearchParams(window.location.search);
-    this._state      = null;
-    this._isAdmin    = params.has('admin') || sessionStorage.getItem('draft_admin') === '1';
-    this._odds       = {};
-    this._db         = null;
-    this._fbCallback = null;
-    this._pollTimer  = null; // fallback only (used if Firebase unavailable)
-
-    // Initialize Firebase Realtime Database
-    try {
-      if (typeof firebase !== 'undefined' && CONFIG.FIREBASE_CONFIG) {
-        if (!firebase.apps.length) firebase.initializeApp(CONFIG.FIREBASE_CONFIG);
-        this._db = firebase.database();
-      }
-    } catch (e) {
-      console.warn('Firebase init failed:', e);
-    }
+    const params    = new URLSearchParams(window.location.search);
+    this._state     = null;
+    this._isAdmin   = params.has('admin') || sessionStorage.getItem('draft_admin') === '1';
+    this._odds      = {};
+    this._pollTimer = null;
+    // Firebase REST base URL — no SDK needed, plain fetch()
+    this._fbUrl     = CONFIG.FIREBASE_CONFIG?.databaseURL
+      ? `${CONFIG.FIREBASE_CONFIG.databaseURL}/worldcup2026/draft.json`
+      : null;
   }
 
   _toggleAdmin() {
@@ -106,20 +98,22 @@ class DraftEngine {
     if (this._isAdmin && this._state.status !== 'pending') await this._saveState();
   }
 
-  // ── Firebase I/O ─────────────────────────────────────────────────────────────
+  // ── Firebase REST I/O ────────────────────────────────────────────────────────
+  // Uses Firebase Realtime Database REST API — no SDK, no WebSocket, plain fetch().
+  // Rules at /worldcup2026 must have ".read": true, ".write": true.
 
   async _loadState() {
     const localSnap = this._lsLoad();
     try {
-      if (!this._db) throw new Error('Firebase unavailable');
-      const snap = await Promise.race([
-        this._db.ref(DRAFT_FB_PATH).get(),
+      if (!this._fbUrl) throw new Error('No Firebase URL');
+      const res = await Promise.race([
+        fetch(this._fbUrl),
         new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase timeout')), 5000)),
       ]);
-      const remote = snap.exists() ? snap.val() : null;
+      if (!res.ok) throw new Error(`Firebase ${res.status}`);
+      const remote = await res.json(); // null when path has no data
 
       // Use whichever state is furthest along: Firebase vs localStorage.
-      // Handles migration from Gist: if Firebase is empty but local has picks, keep picks.
       const rank = { pending: 0, active: 1, complete: 2 };
       const candidates = [remote, localSnap].filter(s => s?.status);
       const best = candidates.reduce((a, b) => {
@@ -133,7 +127,6 @@ class DraftEngine {
       this._lsSave(this._state);
     } catch (e) {
       console.warn('Draft _loadState:', e.message);
-      if (e.message === 'Firebase timeout') this._db = null; // disable so listener doesn't retry dead connection
       this._state = localSnap ?? this._blank();
     }
   }
@@ -149,17 +142,21 @@ class DraftEngine {
   async _saveState() {
     this._lsSave(this._state); // always persist locally as backup
     if (!this._isAdmin) return false;
-    if (!this._db) { this._warnNoWrite(); return false; }
+    if (!this._fbUrl) { this._warnNoWrite(); return false; }
     try {
-      await Promise.race([
-        this._db.ref(DRAFT_FB_PATH).set(this._state),
+      const res = await Promise.race([
+        fetch(this._fbUrl, {
+          method:  'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(this._state),
+        }),
         new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase timeout')), 5000)),
       ]);
+      if (!res.ok) throw new Error(`Firebase ${res.status}`);
       this._clearWriteWarn();
       return true;
     } catch (e) {
       console.warn('Firebase write failed:', e.message);
-      if (e.message === 'Firebase timeout') this._db = null;
       this._warnNoWrite();
       return false;
     }
@@ -304,69 +301,22 @@ class DraftEngine {
     this._renderOrderList();
   }
 
-  // ── Real-time listener ────────────────────────────────────────────────────────
+  // ── Polling ───────────────────────────────────────────────────────────────────
 
   _startPolling() {
-    // Clean up any existing listener / timer
-    if (this._db && this._fbCallback) {
-      this._db.ref(DRAFT_FB_PATH).off('value', this._fbCallback);
-      this._fbCallback = null;
-    }
     clearInterval(this._pollTimer);
-
-    if (!this._db) {
-      // Firebase unavailable — fall back to 5-second polling
-      this._pollTimer = setInterval(async () => {
-        const prevPicks  = this._state.picks?.length ?? 0;
-        const prevStatus = this._state.status;
-        await this._loadState();
-        const newPicks  = this._state.picks?.length ?? 0;
-        const newStatus = this._state.status;
-        if (newPicks !== prevPicks || newStatus !== prevStatus) {
-          applyDraftToParticipants(this._state.picks);
-          this._render();
-        }
-        if (newStatus === 'complete') clearInterval(this._pollTimer);
-      }, 5000);
-      return;
-    }
-
-    // Firebase onValue: fires immediately with current value, then on every change
-    this._fbCallback = (snap) => {
-      const remote = snap.exists() ? snap.val() : null;
-      if (!remote?.status) return;
-
-      const prevPicks  = this._state?.picks?.length ?? 0;
-      const prevStatus = this._state?.status;
-
-      const rank   = { pending: 0, active: 1, complete: 2 };
-      const curRnk = rank[this._state?.status] ?? -1;
-      const remRnk = rank[remote.status] ?? 0;
-      const curPks = this._state?.picks?.length ?? 0;
-      const remPks = remote.picks?.length ?? 0;
-
-      if (remRnk > curRnk || (remRnk === curRnk && remPks >= curPks)) {
-        this._state = remote;
-        this._lsSave(remote);
-      }
-
-      const newPicks  = this._state?.picks?.length ?? 0;
-      const newStatus = this._state?.status;
-
+    this._pollTimer = setInterval(async () => {
+      const prevPicks  = this._state.picks?.length ?? 0;
+      const prevStatus = this._state.status;
+      await this._loadState();
+      const newPicks  = this._state.picks?.length ?? 0;
+      const newStatus = this._state.status;
       if (newPicks !== prevPicks || newStatus !== prevStatus) {
-        applyDraftToParticipants(this._state.picks);
+        applyDraftToParticipants(this._state.picks ?? []);
         this._render();
       }
-
-      if (newStatus === 'complete') {
-        this._db.ref(DRAFT_FB_PATH).off('value', this._fbCallback);
-        this._fbCallback = null;
-      }
-    };
-
-    this._db.ref(DRAFT_FB_PATH).on('value', this._fbCallback, (err) => {
-      console.warn('Firebase listener error:', err.message);
-    });
+      if (newStatus === 'complete') clearInterval(this._pollTimer);
+    }, 5000);
   }
 
   // ── Render ────────────────────────────────────────────────────────────────────
