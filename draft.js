@@ -6,27 +6,50 @@
  * Non-admins poll every 5 s during an active draft and see the board update live.
  */
 
-// Static fallback odds (used when ODDS_API_KEY is absent or cache is empty)
+// Static fallback odds for all 48 WC 2026 teams
+// (used when ODDS_API_KEY is absent or API calls fail)
 const STATIC_WC26_ODDS = {
-  'Brazil':        '+450',  'Argentina':     '+500',
-  'France':        '+500',  'England':       '+550',
-  'Spain':         '+550',  'Germany':       '+650',
-  'Portugal':      '+800',  'Netherlands':   '+900',
-  'USA':           '+1800', 'Japan':         '+2000',
-  'Morocco':       '+2200', 'Colombia':      '+2500',
-  'Uruguay':       '+2500', 'Mexico':        '+3000',
-  'Croatia':       '+3000', 'Denmark':       '+3000',
-  'Switzerland':   '+3000', 'Belgium':       '+2800',
-  'South Korea':   '+3500', 'Turkey':        '+3500',
-  'Ecuador':       '+4000', 'Canada':        '+4000',
-  'Serbia':        '+4000', 'Poland':        '+4500',
-  'Australia':     '+5000', 'Senegal':       '+5000',
-  'Ukraine':       '+5000', 'Saudi Arabia':  '+6000',
-  'Ghana':         '+6000', 'Cameroon':      '+7000',
-  'Iran':          '+7000', 'Costa Rica':    '+8000',
-  'Paraguay':      '+6000', 'Egypt':         '+7000',
-  'Algeria':       '+6000', 'Nigeria':       '+5500',
-  'Ivory Coast':   '+5500', 'South Africa':  '+8000',
+  // Tier A
+  'Brazil':        '+450',  'Argentina':    '+500',
+  'France':        '+500',  'England':      '+550',
+  'Spain':         '+550',  'Germany':      '+650',
+  'Portugal':      '+800',  'Netherlands':  '+900',
+  // Group A
+  'Mexico':        '+2500', 'South Korea':  '+3500',
+  'Czechia':       '+5000', 'South Africa': '+8000',
+  // Group B
+  'Switzerland':   '+3000', 'Canada':       '+4000',
+  'Bosnia':        '+8000', 'Qatar':        '+12000',
+  // Group C
+  'Morocco':       '+2200', 'Haiti':        '+20000',
+  'Scotland':      '+6000',
+  // Group D
+  'USA':           '+1800', 'Paraguay':     '+5000',
+  'Australia':     '+5000', 'Turkey':       '+3500',
+  // Group E
+  'Ecuador':       '+4000', 'Ivory Coast':  '+5500',
+  'Curacao':       '+25000',
+  // Group F
+  'Japan':         '+2000', 'Sweden':       '+4000',
+  'Tunisia':       '+7000',
+  // Group G
+  'Belgium':       '+2800', 'Egypt':        '+7000',
+  'Iran':          '+7000', 'New Zealand':  '+15000',
+  // Group H
+  'Uruguay':       '+2500', 'Saudi Arabia': '+6000',
+  'Cape Verde':    '+15000',
+  // Group I
+  'Senegal':       '+4500', 'Norway':       '+4000',
+  'Iraq':          '+20000',
+  // Group J
+  'Austria':       '+3500', 'Algeria':      '+5500',
+  'Jordan':        '+20000',
+  // Group K
+  'Colombia':      '+2500', 'Congo':        '+15000',
+  'Uzbekistan':    '+15000',
+  // Group L
+  'Croatia':       '+3000', 'Ghana':        '+6000',
+  'Panama':        '+10000',
 };
 
 const DRAFT_PLAYERS = [
