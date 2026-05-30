@@ -572,9 +572,10 @@ class DraftEngine {
       row.appendChild(rl);
 
       for (let pos = 0; pos < DRAFT_N; pos++) {
-        const overall = r * DRAFT_N + pos + 1;
-        const pIdx    = r % 2 === 0 ? pos : DRAFT_N - 1 - pos;
-        const player  = this._state.draftOrder[pIdx];
+        const overall = r % 2 === 0
+          ? r * DRAFT_N + pos + 1
+          : r * DRAFT_N + (DRAFT_N - 1 - pos) + 1;
+        const player  = this._state.draftOrder[pos];
         const color   = OWNER_COLORS[player] || '#8090b8';
         const pick    = pickMap[overall];
         const onClock = overall === curOverall && isActive;
