@@ -1,9 +1,10 @@
 /**
  * draft.js — Snake draft board
  *
- * State lives in a Gist file (DRAFT_FILE).
- * Admin mode: add ?admin to the URL — no password, friends-only app.
- * Non-admins poll every 5 s during an active draft and see the board update live.
+ * State lives in Firebase Realtime Database (worldcup2026/draft).
+ * Uses the Firebase REST API — no SDK, plain fetch().
+ * Admin mode: click the Admin button and enter the PIN.
+ * Everyone polls every 5 s and sees picks update live.
  */
 
 // Static fallback odds for all 48 WC 2026 teams
@@ -52,10 +53,6 @@ const STATIC_WC26_ODDS = {
   'Panama':        '+10000',
 };
 
-// Hardcoded so it works even if config.js doesn't define the key
-// (config.js is gitignored — deployed site may not have DRAFT_GIST_FILENAME)
-const DRAFT_FILE    = 'wc-draft-state.json'; // kept for legacy Gist migration only
-const DRAFT_FB_PATH = 'worldcup2026/draft';  // Firebase Realtime Database path
 
 const DRAFT_PLAYERS = [
   'Kade', 'Zach', 'Konrad', 'Cody (Left)', 'Cody (Right)', 'Scott', 'Brandon', 'Allan',
