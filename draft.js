@@ -10,47 +10,47 @@
 // Static fallback odds for all 48 WC 2026 teams
 // (used when ODDS_API_KEY is absent or API calls fail)
 const STATIC_WC26_ODDS = {
-  // Tier A
-  'Brazil':        '+450',  'Argentina':    '+500',
-  'France':        '+500',  'England':      '+550',
-  'Spain':         '+550',  'Germany':      '+650',
-  'Portugal':      '+800',  'Netherlands':  '+900',
+  // Tier A — via sportsbettingdime.com, May 29 2026
+  'Spain':         '+475',  'France':        '+500',
+  'England':       '+650',  'Brazil':        '+850',
+  'Argentina':     '+900',  'Portugal':      '+1000',
+  'Germany':       '+1400', 'Netherlands':   '+2200',
   // Group A
-  'Mexico':        '+2500', 'South Korea':  '+3500',
-  'Czechia':       '+5000', 'South Africa': '+8000',
+  'Mexico':        '+8000', 'South Korea':   '+40000',
+  'Czechia':       '+25000','South Africa':  '+100000',
   // Group B
-  'Switzerland':   '+3000', 'Canada':       '+4000',
-  'Bosnia':        '+8000', 'Qatar':        '+12000',
+  'Switzerland':   '+6500', 'Canada':        '+20000',
+  'Bosnia':        '+50000','Qatar':         '+150000',
   // Group C
-  'Morocco':       '+2200', 'Haiti':        '+20000',
-  'Scotland':      '+6000',
+  'Morocco':       '+5000', 'Haiti':         '+250000',
+  'Scotland':      '+20000',
   // Group D
-  'USA':           '+1800', 'Paraguay':     '+5000',
-  'Australia':     '+5000', 'Turkey':       '+3500',
+  'USA':           '+6000', 'Paraguay':      '+30000',
+  'Australia':     '+60000','Turkey':        '+10000',
   // Group E
-  'Ecuador':       '+4000', 'Ivory Coast':  '+5500',
-  'Curacao':       '+25000',
+  'Ecuador':       '+8000', 'Ivory Coast':   '+25000',
+  'Curacao':       '+250000',
   // Group F
-  'Japan':         '+2000', 'Sweden':       '+4000',
-  'Tunisia':       '+7000',
+  'Japan':         '+6500', 'Sweden':        '+10000',
+  'Tunisia':       '+50000',
   // Group G
-  'Belgium':       '+2800', 'Egypt':        '+7000',
-  'Iran':          '+7000', 'New Zealand':  '+15000',
+  'Belgium':       '+3500', 'Egypt':         '+30000',
+  'Iran':          '+70000','New Zealand':   '+150000',
   // Group H
-  'Uruguay':       '+2500', 'Saudi Arabia': '+6000',
-  'Cape Verde':    '+15000',
+  'Uruguay':       '+5000', 'Saudi Arabia':  '+100000',
+  'Cape Verde':    '+100000',
   // Group I
-  'Senegal':       '+4500', 'Norway':       '+4000',
-  'Iraq':          '+20000',
+  'Senegal':       '+9000', 'Norway':        '+3500',
+  'Iraq':          '+150000',
   // Group J
-  'Austria':       '+3500', 'Algeria':      '+5500',
-  'Jordan':        '+20000',
+  'Austria':       '+15000','Algeria':       '+35000',
+  'Jordan':        '+250000',
   // Group K
-  'Colombia':      '+2500', 'Congo':        '+15000',
-  'Uzbekistan':    '+15000',
+  'Colombia':      '+4000', 'Congo':         '+100000',
+  'Uzbekistan':    '+150000',
   // Group L
-  'Croatia':       '+3000', 'Ghana':        '+6000',
-  'Panama':        '+10000',
+  'Croatia':       '+8000', 'Ghana':         '+30000',
+  'Panama':        '+100000',
 };
 
 
