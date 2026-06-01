@@ -182,19 +182,20 @@ class DraftEngine {
   // ── Odds ─────────────────────────────────────────────────────────────────────
 
   async _loadOdds() {
-    // Use cached odds if they have data and are fresh (or no API key to refresh with)
+    if (!CONFIG.ODDS_API_KEY) {
+      // No live source — STATIC_WC26_ODDS is always authoritative.
+      // Spread cached first so static values overwrite any stale cached entries.
+      this._odds = { ...this._state.odds, ...STATIC_WC26_ODDS };
+      this._state.odds = this._odds;
+      this._state.oddsUpdatedAt = Date.now();
+      return;
+    }
+    // Has API key — use cache if still fresh (6 h)
     const cachedHasData = this._state.odds && Object.keys(this._state.odds).length > 0;
     const cacheAge      = Date.now() - (this._state.oddsUpdatedAt || 0);
     const cacheFresh    = cacheAge < 6 * 3_600_000;
-    if (cachedHasData && (!CONFIG.ODDS_API_KEY || cacheFresh)) {
+    if (cachedHasData && cacheFresh) {
       this._odds = this._state.odds;
-      return;
-    }
-    if (!CONFIG.ODDS_API_KEY) {
-      // No API key — use static odds, but keep any cached values that exist
-      this._odds = { ...STATIC_WC26_ODDS, ...this._state.odds };
-      this._state.odds = this._odds;
-      this._state.oddsUpdatedAt = Date.now();
       return;
     }
 

@@ -2660,7 +2660,6 @@ a:hover { color: var(--red); }
 .dc-pick-btn:hover { opacity: 0.85; }
 
 @media (max-width: 480px) {
-  .draft-grid { grid-template-columns: 1fr 1fr; }
   .draft-clock-name { font-size: 1.3rem; }
   .dc-name { font-size: 0.75rem; }
 }
@@ -4669,6 +4668,56 @@ a:hover { color: var(--red); }
   text-decoration: underline;
 }
 
+
+/* ── Draft tab: mobile ───────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  /* Board — compact cells so 8 columns scroll comfortably */
+  #panel-draft .db-phd {
+    font-size: 8.5px;
+    padding: 5px 4px;
+    letter-spacing: 0;
+  }
+  #panel-draft .db-rlbl {
+    font-size: 13px;
+    padding: 7px 7px;
+  }
+  #panel-draft .db-cell {
+    padding: 5px 4px;
+    min-height: 42px;
+  }
+  #panel-draft .db-cell .flag-img-sm { width: 15px; }
+  #panel-draft .db-team  { font-size: 8px;   letter-spacing: 0; }
+  #panel-draft .db-pnum  { font-size: 7.5px; }
+  #panel-draft .db-clock-lbl { font-size: 8px; }
+  #panel-draft .db-clock-dot { width: 5px; height: 5px; }
+
+  /* "On the clock" header — compact stack */
+  #panel-draft .draft-clock      { gap: 6px; flex-wrap: wrap; }
+  #panel-draft .draft-clock-name { font-size: 24px; }
+  #panel-draft .draft-clock-meta { font-size: 10px; }
+
+  /* Filter bar — single horizontally-scrollable row, no wrapping */
+  #panel-draft .draft-filter-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 6px;
+    padding-bottom: 2px;
+  }
+  #panel-draft .draft-filter-bar::-webkit-scrollbar { display: none; }
+  #panel-draft .draft-search     { min-width: 100px; flex: 1 1 100px; }
+  #panel-draft .draft-filter-btns { flex-shrink: 0; }
+
+  /* Team cards — single column, much easier to tap & read */
+  #panel-draft .draft-grid {
+    grid-template-columns: 1fr !important;
+  }
+  #panel-draft .draft-card { padding: 10px 12px; }
+  #panel-draft .dc-name    { font-size: 14px; }
+  #panel-draft .dc-odds    { font-size: 15px; }
+  #panel-draft .dc-pick-btn { padding: 7px 14px; font-size: 11px; }
+}
 
 /* ── Rules tab ───────────────────────────────────────────────────────────── */
 
