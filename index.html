@@ -89,6 +89,7 @@
         <div class="lb-rail" id="lb-rail">
           <div id="rail-slate"></div>
           <div id="rail-wire"></div>
+          <div id="rail-sidebets"></div>
         </div>
       </div>
     </div>
@@ -268,6 +269,7 @@
   <script src="app.js"></script>
   <script src="leaderboard.js"></script>
   <script src="draft.js"></script>
+  <script src="sidebets.js"></script>
   <script src="notification-engine.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async function () {
@@ -276,6 +278,7 @@
       const draft = new DraftEngine();
       await draft.init();
       new ScoringEngine().init();
+      new SideBetsEngine().init();
       NotificationEngine.init();
     });
   </script>
