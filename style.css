@@ -1589,6 +1589,63 @@ a:hover { color: var(--red); }
   .lbanner-flag  { font-size: 1.25rem; }
 }
 
+/* ── Live banner: side bets expand ───────────────────────────────────────── */
+.lbanner-bets-wrap {
+  margin-top: 0.55rem;
+  border-top: 1px solid var(--red-border);
+  padding-top: 0.5rem;
+}
+.lbanner-bets-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-2);
+  padding: 0;
+  text-transform: uppercase;
+  transition: color 0.12s;
+}
+.lbanner-bets-toggle:hover { color: var(--text-1); }
+.lbanner-bets-panel {
+  margin-top: 0.45rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.lbanner-bet-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 0.4rem 0.65rem;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  flex-wrap: wrap;
+}
+.lbanner-bet-parties {
+  white-space: nowrap;
+  font-size: 0.7rem;
+}
+.lbanner-bet-vs {
+  color: var(--text-3);
+  font-size: 0.58rem;
+  letter-spacing: 0.05em;
+}
+.lbanner-bet-desc {
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lbanner-bet-meta {
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.lbb-open { color: var(--green); font-weight: 600; }
+.lbb-done { color: var(--text-3); }
+
 /* ── Biggest Mover card ───────────────────────────────────────────────────── */
 .bm-card {
   display: flex;
@@ -4891,8 +4948,20 @@ a:hover { color: var(--red); }
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--ink2);
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   line-height: 1.45;
+}
+.sb-card-game {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--pitch);
+  margin-bottom: 10px;
+}
+/* Game picker select — same look as sb-input */
+.sb-game-select {
+  appearance: auto;
+  cursor: pointer;
 }
 .sb-card-footer {
   display: flex;

@@ -514,6 +514,10 @@ class DataLayer {
   }
 }
 
+// ── Shared match list (read by sidebets.js for game picker) ───────────────────
+// Set by ScoringEngine each time it fetches; safe to read from other modules.
+let _loadedMatches = [];
+
 // ── Knockout round → scoring key ───────────────────────────────────────────────
 
 const ROUND_SCORE_KEY = {
@@ -876,6 +880,7 @@ class ScoringEngine {
       this._standings = null;
       this._data.source = 'error';
     }
+    _loadedMatches = this._matches; // expose for sidebets game picker
 
     this._updateHeader();
     this._renderLiveBanner();
@@ -1259,6 +1264,39 @@ function _buildLiveBannerCard(m) {
       </div>`;
   }).join('');
 
+  // Side bets tagged to this specific match (provided by sidebets.js if loaded)
+  const matchBets = (typeof getSideBetsForMatch === 'function')
+    ? getSideBetsForMatch(m.homeTeam, m.awayTeam)
+    : [];
+
+  const sideBetsHtml = matchBets.length ? `
+    <div class="lbanner-bets-wrap">
+      <button class="lbanner-bets-toggle" aria-expanded="false">
+        💰 ${matchBets.length} side bet${matchBets.length !== 1 ? 's' : ''}
+      </button>
+      <div class="lbanner-bets-panel" hidden>
+        ${matchBets.map(b => {
+          const p1c   = OWNER_COLORS[b.party1] || '#6b7280';
+          const p2c   = OWNER_COLORS[b.party2] || '#6b7280';
+          const isOpen = b.status === 'open';
+          return `
+            <div class="lbanner-bet-row">
+              <span class="lbanner-bet-parties">
+                <span style="color:${p1c};font-weight:700">${escHtml(b.party1)}</span>
+                <span class="lbanner-bet-vs"> vs </span>
+                <span style="color:${p2c};font-weight:700">${escHtml(b.party2)}</span>
+              </span>
+              <span class="lbanner-bet-desc">${escHtml(b.description)}</span>
+              <span class="lbanner-bet-meta">${escHtml(b.stake)} ·
+                <span class="${isOpen ? 'lbb-open' : 'lbb-done'}">
+                  ${isOpen ? 'open' : `✓ ${escHtml(b.winner)}`}
+                </span>
+              </span>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>` : '';
+
   const el = document.createElement('div');
   el.className = 'live-banner-card';
   el.innerHTML = `
@@ -1279,7 +1317,22 @@ function _buildLiveBannerCard(m) {
       </span>
     </div>
     <div class="lbanner-owners">${ownerRowsHtml}</div>
+    ${sideBetsHtml}
   `;
+
+  // Wire up the expand toggle
+  if (matchBets.length) {
+    const toggleBtn = el.querySelector('.lbanner-bets-toggle');
+    const panel     = el.querySelector('.lbanner-bets-panel');
+    const countTxt  = `💰 ${matchBets.length} side bet${matchBets.length !== 1 ? 's' : ''}`;
+    toggleBtn.addEventListener('click', () => {
+      const expanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+      toggleBtn.setAttribute('aria-expanded', String(!expanded));
+      panel.hidden = expanded;
+      toggleBtn.textContent = expanded ? countTxt : '▲ Hide bets';
+    });
+  }
+
   return el;
 }
 

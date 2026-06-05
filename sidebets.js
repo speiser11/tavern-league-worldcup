@@ -6,8 +6,13 @@
  * Everyone else: read-only. Polls every 30 s.
  *
  * Public:
- *   new SideBetsEngine().init()  — call on DOMContentLoaded
- *   renderSideBetsRail(bets)     — called internally; also safe to call externally
+ *   new SideBetsEngine().init()       — call on DOMContentLoaded
+ *   renderSideBetsRail(bets)          — called internally; safe to call externally
+ *   getSideBetsForMatch(home, away)   — called by _buildLiveBannerCard in app.js
+ *
+ * Bet schema:
+ *   { id, description, party1, party2, stake, status, winner, createdAt,
+ *     gameTeams: [homeTeam, awayTeam] | null }   ← null = tournament-wide
  */
 
 class SideBetsEngine {
@@ -44,6 +49,7 @@ class SideBetsEngine {
     } catch (e) {
       console.warn('SideBets load:', e.message);
     }
+    window._sideBets = this._bets; // expose for live banner in app.js
   }
 
   async _save() {
@@ -62,6 +68,7 @@ class SideBetsEngine {
     } catch (e) {
       console.warn('SideBets save:', e.message);
     }
+    window._sideBets = this._bets; // keep live banner in sync after writes
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -130,7 +137,7 @@ class SideBetsEngine {
     const div = document.createElement('div');
     div.className = 'sb-form';
 
-    // Build datalist options from PARTICIPANTS
+    // Datalist for player name autocomplete
     const nameOpts = (typeof PARTICIPANTS !== 'undefined')
       ? Object.keys(PARTICIPANTS).map(n => `<option value="${escHtml(n)}">`).join('')
       : '';
@@ -159,6 +166,12 @@ class SideBetsEngine {
         <input class="sb-input" id="sb-stake" type="text"
                placeholder="e.g. 6-pack, $20, dishes, a dare">
       </div>
+      <div class="sb-field">
+        <label class="sb-label">Game (optional — leave blank for tournament-wide bets)</label>
+        <select class="sb-input sb-game-select" id="sb-game">
+          ${_buildMatchSelectOptions()}
+        </select>
+      </div>
       <div class="sb-form-actions">
         <button class="sb-submit-btn" id="sb-submit">Log Bet</button>
       </div>
@@ -170,6 +183,10 @@ class SideBetsEngine {
       const p2    = div.querySelector('#sb-p2').value.trim();
       const stake = div.querySelector('#sb-stake').value.trim();
       if (!desc || !p1 || !p2 || !stake) { alert('Fill in all fields.'); return; }
+
+      const gameVal   = div.querySelector('#sb-game').value;
+      const gameTeams = gameVal ? JSON.parse(gameVal) : null;
+
       const bet = {
         id:          `bet_${Date.now()}`,
         description: desc,
@@ -179,6 +196,7 @@ class SideBetsEngine {
         status:      'open',
         winner:      null,
         createdAt:   Date.now(),
+        gameTeams,   // [homeTeam, awayTeam] or null
       };
       this._bets.unshift(bet);
       this._showForm = false;
@@ -225,6 +243,9 @@ class SideBetsEngine {
         </div>
       </div>
       <div class="sb-card-desc">"${escHtml(bet.description)}"</div>
+      ${bet.gameTeams ? `
+        <div class="sb-card-game">⚽ ${escHtml(bet.gameTeams[0])} vs ${escHtml(bet.gameTeams[1])}</div>
+      ` : ''}
       <div class="sb-card-footer">
         <span class="sb-stake-lbl">Stakes:</span>
         <span class="sb-stake-val">${escHtml(bet.stake)}</span>
@@ -301,6 +322,60 @@ class SideBetsEngine {
       if (JSON.stringify(this._bets) !== snap) this._render();
     }, 30_000);
   }
+}
+
+// ── Global helpers (called by app.js) ─────────────────────────────────────────
+
+/**
+ * Return all bets tagged to a specific match.
+ * Called by _buildLiveBannerCard in app.js — safe if no bets exist.
+ */
+function getSideBetsForMatch(homeTeam, awayTeam) {
+  return (window._sideBets || []).filter(b =>
+    Array.isArray(b.gameTeams) &&
+    b.gameTeams.includes(homeTeam) &&
+    b.gameTeams.includes(awayTeam)
+  );
+}
+
+/**
+ * Build <option> / <optgroup> HTML for the game picker select.
+ * Uses _loadedMatches from app.js (may be empty before first fetch).
+ */
+function _buildMatchSelectOptions() {
+  const matches = (typeof _loadedMatches !== 'undefined' ? _loadedMatches : []);
+
+  let html = '<option value="">— Tournament-wide (no specific game) —</option>';
+  if (!matches.length) return html;
+
+  const ROUND_ORDER  = ['group','round_of_32','round_of_16','quarterfinal','semifinal','final'];
+  const ROUND_LABELS = {
+    group:        'Group Stage',
+    round_of_32:  'Round of 32',
+    round_of_16:  'Round of 16',
+    quarterfinal: 'Quarterfinals',
+    semifinal:    'Semifinals',
+    final:        'Final',
+  };
+
+  const byRound = {};
+  for (const m of matches) {
+    (byRound[m.round] = byRound[m.round] || []).push(m);
+  }
+
+  for (const round of ROUND_ORDER) {
+    if (!byRound[round]?.length) continue;
+    const label = ROUND_LABELS[round] || round;
+    html += `<optgroup label="${escHtml(label)}">`;
+    for (const m of byRound[round]) {
+      const d       = new Date(m.date);
+      const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const val     = escHtml(JSON.stringify([m.homeTeam, m.awayTeam]));
+      html += `<option value="${val}">${dateStr} · ${escHtml(m.homeTeam)} vs ${escHtml(m.awayTeam)}</option>`;
+    }
+    html += '</optgroup>';
+  }
+  return html;
 }
 
 // ── Right Rail ─────────────────────────────────────────────────────────────────
