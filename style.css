@@ -3069,7 +3069,13 @@ a:hover { color: var(--red); }
   align-items: start;
 }
 
-@media (min-width: 1100px) {
+/* Compact two-column: narrower rail so deck chips still fit */
+@media (min-width: 980px) {
+  .lb-layout { grid-template-columns: 1fr 220px; }
+}
+
+/* Full two-column at wider viewports */
+@media (min-width: 1180px) {
   .lb-layout { grid-template-columns: 1fr 310px; }
 }
 
@@ -3079,8 +3085,10 @@ a:hover { color: var(--red); }
   align-items: flex-end;
   justify-content: space-between;
   margin-bottom: 12px;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 8px;
+  flex-wrap: nowrap;   /* keep title+chips on one row */
+  min-width: 0;
+  overflow: hidden;
 }
 
 .lb-eyebrow {
@@ -3098,14 +3106,21 @@ a:hover { color: var(--red); }
   line-height: 0.95;
   letter-spacing: 0.02em;
   color: var(--ink);
+  white-space: nowrap;
 }
 
 .lb-view-filters {
   display: flex;
   gap: 4px;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  flex-shrink: 1;
+  padding-bottom: 1px;
 }
+.lb-view-filters::-webkit-scrollbar { display: none; }
 
 .lb-vf {
   font-family: var(--font-mono);
@@ -3132,6 +3147,8 @@ a:hover { color: var(--red); }
 .lb-table {
   background: var(--bg-card);
   border: 1px solid var(--border);
+  overflow-x: auto;           /* scroll rather than clip when very narrow */
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Column header bar */
