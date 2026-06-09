@@ -16,6 +16,9 @@
 let _prevRanks         = {};
 let _countdownInterval = null;
 let _currentMatches    = [];
+let _lbFilter          = 'Overall'; // persists across ESPN re-fetches
+let _rawScores         = [];        // unfiltered scores from last render
+let _rawMatches        = [];
 
 // ── Player monograms ───────────────────────────────────────────────────────────
 const PLAYER_MONOS = {
@@ -58,6 +61,8 @@ function _teamCode(name) {
 function renderLeaderboard(scores, matches) {
   _currentMatches = matches || [];
   _prevRanks      = _loadPrevRanks();
+  _rawScores      = scores;
+  _rawMatches     = matches || [];
 
   // Update header status
   _updateHeaderStatus(matches);
@@ -71,35 +76,13 @@ function renderLeaderboard(scores, matches) {
   }
 
   const frag = document.createDocumentFragment();
-
-  // Topbar: "THE TABLE" heading + filter chips
   frag.appendChild(_buildTableTopbar());
-
-  // Standings table
-  const table = document.createElement('div');
-  table.className = 'lb-table';
-  table.setAttribute('role', 'table');
-  table.setAttribute('aria-label', 'Fantasy standings');
-
-  // Column header row
-  table.appendChild(_buildColHeader());
-
-  // Entry rows
-  for (const entry of scores) {
-    table.appendChild(_buildEntry(entry));
-  }
-
-  frag.appendChild(table);
-
-  // Legend
+  frag.appendChild(_buildLbTable(_filterScores(scores, _lbFilter)));
   frag.appendChild(_buildLegend());
-
   container.appendChild(frag);
 
-  // Right rail: today's slate + wire
   _renderRightRail(matches);
-
-  _savePrevRanks(scores);
+  _savePrevRanks(scores); // always persist unfiltered ranks
 }
 
 // ── Header status ──────────────────────────────────────────────────────────────
@@ -129,13 +112,86 @@ function _buildTableTopbar() {
       <div class="lb-big-title">THE TABLE</div>
     </div>
     <div class="lb-view-filters">
-      <span class="lb-vf active">Overall</span>
-      <span class="lb-vf">Today</span>
-      <span class="lb-vf">Group Stage</span>
-      <span class="lb-vf">Knockouts</span>
+      ${['Overall','Today','Group Stage','Knockouts'].map(f =>
+        `<span class="lb-vf${f === _lbFilter ? ' active' : ''}">${f}</span>`
+      ).join('')}
     </div>
   `;
+
+  div.querySelectorAll('.lb-vf').forEach(chip => {
+    chip.addEventListener('click', () => {
+      _lbFilter = chip.textContent.trim();
+      const container = document.getElementById('leaderboard-container');
+      // Swap just the table, leave topbar + legend in place
+      const old = container?.querySelector('.lb-table');
+      if (old && _rawScores.length) {
+        old.replaceWith(_buildLbTable(_filterScores(_rawScores, _lbFilter)));
+      }
+      // Update active chip
+      container?.querySelectorAll('.lb-vf').forEach(c =>
+        c.classList.toggle('active', c.textContent.trim() === _lbFilter)
+      );
+    });
+  });
+
   return div;
+}
+
+// ── Leaderboard table builder ──────────────────────────────────────────────────
+
+function _buildLbTable(scores) {
+  const table = document.createElement('div');
+  table.className = 'lb-table';
+  table.setAttribute('role', 'table');
+  table.setAttribute('aria-label', 'Fantasy standings');
+  table.appendChild(_buildColHeader());
+  for (const entry of scores) table.appendChild(_buildEntry(entry));
+  return table;
+}
+
+// ── Filter scores by time period ───────────────────────────────────────────────
+
+function _filterScores(scores, label) {
+  if (label === 'Overall') return scores;
+
+  const today      = new Date().toDateString();
+  const GRP_EVENTS = new Set(['group_win','group_draw','giant_killer','group_advance','group_1st']);
+  const KO_EVENTS  = new Set(['round_of_32','round_of_16','quarterfinal','semifinal','champion']);
+
+  const keep = label === 'Today'       ? e => new Date(e.date).toDateString() === today
+             : label === 'Group Stage' ? e => GRP_EVENTS.has(e.event)
+             : label === 'Knockouts'   ? e => KO_EVENTS.has(e.event)
+             : null;
+  if (!keep) return scores;
+
+  const filtered = scores.map(entry => {
+    const hist  = (entry.scoreHistory ?? []).filter(keep);
+    const total = hist.reduce((s, e) => s + e.pts, 0);
+
+    // Per-team totals for deck chip display
+    const teamTotals = {};
+    for (const ev of hist) teamTotals[ev.team] = (teamTotals[ev.team] ?? 0) + ev.pts;
+
+    const breakdown = {};
+    for (const [t, td] of Object.entries(entry.teamBreakdown ?? {})) {
+      breakdown[t] = { ...td, total: teamTotals[t] ?? 0 };
+    }
+
+    return { ...entry, totalScore: total, teamBreakdown: breakdown, scoreHistory: hist };
+  });
+
+  // Re-sort by filtered total, re-rank (ties share rank)
+  filtered.sort((a, b) => b.totalScore - a.totalScore);
+  let nextRank = 1;
+  for (let i = 0; i < filtered.length; i++) {
+    const prev = filtered[i - 1];
+    filtered[i] = {
+      ...filtered[i],
+      rank: (prev && prev.totalScore === filtered[i].totalScore) ? prev.rank : nextRank,
+    };
+    nextRank++;
+  }
+  return filtered;
 }
 
 // ── Column header ──────────────────────────────────────────────────────────────
