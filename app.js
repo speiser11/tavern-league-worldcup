@@ -950,14 +950,15 @@ class ScoringEngine {
       return;
     }
 
-    const ROUND_ORDER = ['group', 'round_of_32', 'round_of_16', 'quarterfinal', 'semifinal', 'final'];
+    const ROUND_ORDER = ['group', 'round_of_32', 'round_of_16', 'quarterfinal', 'semifinal', '3rd-place-match', 'final'];
     const ROUND_LABELS = {
-      group:        'Group Stage',
-      round_of_32:  'Round of 32',
-      round_of_16:  'Round of 16',
-      quarterfinal: 'Quarterfinals',
-      semifinal:    'Semifinals',
-      final:        'Final',
+      group:              'Group Stage',
+      round_of_32:        'Round of 32',
+      round_of_16:        'Round of 16',
+      quarterfinal:       'Quarterfinals',
+      semifinal:          'Semifinals',
+      '3rd-place-match':  '3rd Place Match',
+      final:              'Final',
     };
 
     const frag = document.createDocumentFragment();
@@ -1048,12 +1049,17 @@ class ScoringEngine {
       const tbody = document.createElement('tbody');
 
       standings[groupLetter].forEach((entry, i) => {
-        const owner = TEAM_OWNER[entry.team];
-        const color = owner ? OWNER_COLORS[owner] : null;
-        const flag  = flagImg(entry.team);
-        const isAdv  = advanced.has(entry.team);
-        const isElim = groupComplete[groupLetter] && !isAdv && i === 3;
-        const badge  = isAdv ? ' ✅' : isElim ? ' ❌' : '';
+        const owner      = TEAM_OWNER[entry.team];
+        const color      = owner ? OWNER_COLORS[owner] : null;
+        const flag       = flagImg(entry.team);
+        const complete   = groupComplete[groupLetter];
+        // After groups finish: use official advancement from knockout bracket.
+        // During group stage: top 2 in current standings are "on track".
+        const isAdv      = complete ? advanced.has(entry.team) : (i < 2);
+        const isElim     = complete && !advanced.has(entry.team) && i >= 2;
+        const badge      = (complete && advanced.has(entry.team)) ? ' ✅'
+                         : (complete && isElim)                   ? ' ❌'
+                         : '';
 
         const tr = document.createElement('tr');
         tr.className = 'group-row';
