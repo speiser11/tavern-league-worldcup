@@ -497,7 +497,7 @@ a:hover { color: var(--red); }
 }
 
 .lb-entry.is-expanded .lb-breakdown {
-  max-height: 900px;
+  max-height: 2000px; /* room for wrapped rows + upcoming matches */
   opacity: 1;
   border-top-width: 1px;
 }
@@ -505,13 +505,10 @@ a:hover { color: var(--red); }
 .bd-inner {
   padding: 0.85rem 0.85rem 1rem;
   background: var(--bg-card-alt);
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-@media (min-width: 560px) {
-  .bd-inner { flex-direction: row; gap: 0.75rem; }
+  display: grid;
+  /* auto-fill wraps gracefully: 6 columns when wide, fewer + wraps when narrow */
+  grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+  gap: 0.65rem;
 }
 
 .bd-team {
@@ -3494,9 +3491,8 @@ a:hover { color: var(--red); }
 }
 
 /* ── Breakdown panel ────────────────────────────────────────────────────── */
-/* Override old expand logic */
 .lb-entry.is-expanded .lb-breakdown {
-  max-height: 1200px;
+  max-height: 2000px;
   opacity: 1;
   border-top-width: 1px;
 }
@@ -3505,9 +3501,9 @@ a:hover { color: var(--red); }
   border-top: 0px solid var(--border);
 }
 
-/* Tighten breakdown inner on mobile */
 .bd-inner {
   padding: 0.75rem;
+  /* grid already defined in base CSS — just tighten padding here */
 }
 
 .bd-team {
