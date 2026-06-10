@@ -506,8 +506,7 @@ a:hover { color: var(--red); }
   padding: 0.85rem 0.85rem 1rem;
   background: var(--bg-card-alt);
   display: grid;
-  /* auto-fill wraps gracefully: 6 columns when wide, fewer + wraps when narrow */
-  grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.65rem;
 }
 
