@@ -11,8 +11,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
-  <!-- OneSignal Web Push SDK (v16) -->
-  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 </head>
 <body>
 
@@ -32,14 +30,6 @@
       <div class="header-right">
         <span class="updated-time" id="last-updated"></span>
         <span class="source-badge" id="data-source"></span>
-        <div class="notif-wrap">
-          <button class="notif-bell" id="notif-bell"
-                  aria-label="Enable push notifications"
-                  aria-expanded="false"
-                  aria-controls="notif-panel">🔔</button>
-          <div class="notif-panel" id="notif-panel" role="dialog"
-               aria-label="Notification preferences"></div>
-        </div>
       </div>
     </div>
 
@@ -273,7 +263,6 @@
   <script src="leaderboard.js"></script>
   <script src="draft.js"></script>
   <script src="sidebets.js"></script>
-  <script src="notification-engine.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async function () {
       initTabs();
