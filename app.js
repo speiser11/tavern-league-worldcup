@@ -1651,7 +1651,7 @@ function _wireRankEvents(matches) {
         const ord = n => `${n}${['th','st','nd','rd'][(n%100>10&&n%100<14)?0:Math.min(n%10,4)%4] || 'th'}`;
         out.push({
           kind:  'rank',
-          date:  finished[i].date,
+          date:  new Date(new Date(finished[i].date).getTime() + 96 * 60 * 1000).toISOString(),
           owner: name,
           text:  `${_ownerSpan(name)} ${up ? 'climbs' : 'drops'} to ${ord(ranks[name])} (was ${ord(prev[name])}) after ${escHtml(finished[i].homeTeam)}–${escHtml(finished[i].awayTeam)}.`,
         });
