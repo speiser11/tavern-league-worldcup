@@ -388,27 +388,40 @@ function _buildBreakdownHTML(entry) {
     if (!chips.length)
       chips.push(`<span class="bd-stat-chip chip-none">No matches yet</span>`);
 
-    // Upcoming matches
-    const upcoming = _currentMatches
-      .filter(m => m.status === 'NS' && (m.homeTeam === teamName || m.awayTeam === teamName))
+    // Upcoming + live matches
+    const liveAndUpcoming = _currentMatches
+      .filter(m => (m.status === 'NS' || isLive(m.status)) && (m.homeTeam === teamName || m.awayTeam === teamName))
       .sort((a, b) => new Date(a.date) - new Date(b.date))
       .slice(0, 3);
 
     let upcomingHtml = '';
-    if (upcoming.length) {
-      const rows = upcoming.map(m => {
+    if (liveAndUpcoming.length) {
+      const rows = liveAndUpcoming.map(m => {
         const opp     = m.homeTeam === teamName ? m.awayTeam : m.homeTeam;
         const oppFlag = flagImg(opp);
-        const dateStr = new Date(m.date).toLocaleDateString([], { month: 'short', day: 'numeric' });
-        const timeStr = new Date(m.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         const isHome  = m.homeTeam === teamName;
+        const isLiveM = isLive(m.status);
         const oppLabel = opp.startsWith('Group') || opp.includes('Winner') || opp.includes('Loser')
           ? `<span class="bd-up-tbd">${escHtml(opp)}</span>`
           : `${oppFlag} ${escHtml(opp)}`;
-        return `<div class="bd-up-match">
+
+        let rightHtml;
+        if (isLiveM) {
+          const hs = m.homeScore ?? 0, as = m.awayScore ?? 0;
+          const myScore  = isHome ? hs : as;
+          const oppScore = isHome ? as : hs;
+          const min = m.elapsed ? `${m.elapsed}′` : m.status;
+          rightHtml = `<span class="bd-up-live"><span class="bd-up-live-dot"></span>${myScore}–${oppScore} · ${escHtml(min)}</span>`;
+        } else {
+          const dateStr = new Date(m.date).toLocaleDateString([], { month: 'short', day: 'numeric' });
+          const timeStr = new Date(m.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+          rightHtml = `<span class="bd-up-date">${dateStr} · ${timeStr}</span>`;
+        }
+
+        return `<div class="bd-up-match${isLiveM ? ' is-live' : ''}">
           <span class="bd-up-ha">${isHome ? 'vs' : '@'}</span>
           <span class="bd-up-opp">${oppLabel}</span>
-          <span class="bd-up-date">${dateStr} · ${timeStr}</span>
+          ${rightHtml}
         </div>`;
       }).join('');
       upcomingHtml = `<div class="bd-upcoming"><div class="bd-upcoming-label">Upcoming</div>${rows}</div>`;

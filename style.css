@@ -753,6 +753,29 @@ a:hover { color: var(--red); }
   flex-shrink: 0;
 }
 
+.bd-up-live {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--red);
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.bd-up-live-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--red);
+  animation: live-pulse 1.2s ease-in-out infinite;
+}
+
+.bd-up-match.is-live .bd-up-opp {
+  color: var(--red);
+}
+
 /* ── Schedule tab ─────────────────────────────────────────────────────────── */
 .sched-section {
   margin-bottom: 2rem;
@@ -1412,7 +1435,9 @@ a:hover { color: var(--red); }
 /* ── Live match banner ────────────────────────────────────────────────────── */
 
 #live-banner {
-  margin-bottom: 1rem;
+  max-width: var(--site-max-w, 1280px);
+  margin: 0 auto;
+  padding: 0.5rem 1rem 0;
 }
 
 .live-banner-card {
@@ -3721,7 +3746,7 @@ a:hover { color: var(--red); }
 
 /* ── Live banner (ticker strip) ─────────────────────────────────────────── */
 #live-banner {
-  margin-bottom: 14px;
+  margin-bottom: 0;
 }
 
 .live-banner-card {
@@ -4864,6 +4889,13 @@ a:hover { color: var(--red); }
 @media (max-width: 600px) {
   .wire-row { grid-template-columns: 44px 1fr auto; gap: 8px; padding: 10px 12px; }
   .wire-text { font-size: 11px; }
+}
+
+/* Mobile breakdown: 2 cols instead of 3 */
+@media (max-width: 600px) {
+  .bd-inner { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; padding: 0.65rem; }
+  .bd-team-name { font-size: 0.8rem; }
+  .bd-team-pts { font-size: 1.2rem; }
 }
 
 /* ── Side Bets tab ───────────────────────────────────────────────────────── */
