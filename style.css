@@ -4894,6 +4894,7 @@ a:hover { color: var(--red); }
 /* Mobile breakdown: 2 cols instead of 3 */
 @media (max-width: 600px) {
   .bd-inner { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; padding: 0.65rem; }
+  .bd-inner .bd-team { min-width: 0; overflow: hidden; }
   .bd-team-name { font-size: 0.8rem; }
   .bd-team-pts { font-size: 1.2rem; }
 }
