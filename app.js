@@ -1625,8 +1625,8 @@ function _wireFinalText(m) {
       pts = tier[ROUND_SCORE_KEY[m.round]] ?? 0;
     }
     bits.push(pts > 0
-      ? `${_ownerSpan(owner)} banks +${pts}`
-      : `${_ownerSpan(owner)} clears`);
+      ? `${_ownerSpan(owner)} +${pts} pts`
+      : (owner ? `${_ownerSpan(owner)} 0 pts` : ''));
   }
   return `FT — ${escHtml(m.homeTeam)} ${m.homeScore}–${m.awayScore} ${escHtml(m.awayTeam)}.` +
          (bits.length ? ` ${bits.join(' · ')}.` : '');
