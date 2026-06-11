@@ -550,59 +550,21 @@ function _buildSlateHTML(matches) {
 // ── Wire (activity feed) ───────────────────────────────────────────────────────
 
 function _buildWireHTML(matches) {
-  if (typeof buildActivityFeed === 'undefined') return '';
-  const feed = buildActivityFeed(matches).slice(0, 7);
+  if (typeof buildWireFeed === 'undefined') return '';
+  const feed = buildWireFeed(matches).slice(0, 7);
   if (!feed.length) return '';
 
-  const KIND_COLORS = {
-    group_win:     '#15803D',
-    group_draw:    '#B0AB97',
-    giant_killer:  '#15803D',
-    group_advance: '#1F49E8',
-    group_1st:     '#1F49E8',
-    round_of_32:   '#E0301E',
-    round_of_16:   '#E0301E',
-    quarterfinal:  '#E0301E',
-    semifinal:     '#E0301E',
-    champion:      '#D97706',
-  };
-
-  const KIND_LABELS = {
-    group_win:     'WIN',
-    group_draw:    'DRAW',
-    giant_killer:  'GIANT',
-    group_advance: 'ADV',
-    group_1st:     'ADV',
-    round_of_32:   'R32',
-    round_of_16:   'R16',
-    quarterfinal:  'QF',
-    semifinal:     'SF',
-    champion:      'CHAMP',
-  };
-
   const rows = feed.map(item => {
-    const kindColor = KIND_COLORS[item.event] || '#0A0A0A';
-    const kindLabel = KIND_LABELS[item.event] || item.event.slice(0, 5).toUpperCase();
-    const ownerColor = (typeof OWNER_COLORS !== 'undefined' && OWNER_COLORS[item.owner]) || '#ccc';
-
-    const d = new Date(item.date);
-    const now = Date.now();
-    const diffMs = now - d;
-    const diffH = Math.floor(diffMs / 3600000);
-    const diffD = Math.floor(diffMs / 86400000);
-    const ago = diffD >= 1 ? `${diffD}d` : diffH >= 1 ? `${diffH}h` : 'now';
-
-    const mono = PLAYER_MONOS[item.owner] || item.owner.slice(0,2).toUpperCase();
+    const meta = (typeof WIRE_KIND_META !== 'undefined' && WIRE_KIND_META[item.kind])
+      || { label: item.kind.toUpperCase(), color: '#0A0A0A' };
+    const ago = _wireRelTime(item.date);
 
     return `<div class="rail-wire-item">
       <div class="rail-wire-left">
-        <span class="rail-wire-kind" style="background:${kindColor}">${kindLabel}</span>
+        <span class="rail-wire-kind" style="background:${meta.color}">${meta.label}</span>
         <span class="rail-wire-ago">${ago}</span>
       </div>
-      <div class="rail-wire-text">
-        <span class="rail-wire-dot" style="background:${ownerColor}"></span>
-        <span>${escHtml(mono)} · ${flagImg(item.team, 'flag-img-sm')} ${escHtml(item.team)} <strong>+${item.pts}</strong></span>
-      </div>
+      <div class="rail-wire-text">${item.text}</div>
     </div>`;
   }).join('');
 
@@ -758,19 +720,29 @@ function _initChipFilters() {
 }
 
 function _applyWireFilter(label) {
-  const WIN_EVENTS = new Set(['group_win', 'round_of_32', 'round_of_16',
-                               'quarterfinal', 'semifinal', 'champion', 'giant_killer']);
-  const ADV_EVENTS = new Set(['group_advance', 'group_1st']);
-  const KO_EVENTS  = new Set(['round_of_32', 'round_of_16',
-                               'quarterfinal', 'semifinal', 'champion']);
+  const KIND_FOR_LABEL = {
+    'Goals':         'goal',
+    'Finals':        'final',
+    'Rank':          'rank',
+    'Giant Killers': 'giant',
+    'Side Bets':     'bet',
+  };
+  const want = KIND_FOR_LABEL[label] ?? null; // null = All
 
-  for (const item of document.querySelectorAll('#feed-container .feed-item')) {
-    const ev = item.dataset.event;
-    let show = true;
-    if      (label === 'Wins')      show = WIN_EVENTS.has(ev);
-    else if (label === 'Advances')  show = ADV_EVENTS.has(ev);
-    else if (label === 'Knockouts') show = KO_EVENTS.has(ev);
-    item.style.display = show ? '' : 'none';
+  const container = document.getElementById('feed-container');
+  if (!container) return;
+
+  for (const row of container.querySelectorAll('.wire-row')) {
+    row.style.display = (!want || row.dataset.kind === want) ? '' : 'none';
+  }
+  // Hide day headers whose section has no visible rows
+  for (const hdr of container.querySelectorAll('.wire-day-header')) {
+    let el = hdr.nextElementSibling, any = false;
+    while (el && !el.classList.contains('wire-day-header')) {
+      if (el.style.display !== 'none') { any = true; break; }
+      el = el.nextElementSibling;
+    }
+    hdr.style.display = any ? '' : 'none';
   }
 }
 

@@ -362,7 +362,7 @@ function mapEspnStatus(espnName, state) {
 
 // ── Data layer ─────────────────────────────────────────────────────────────────
 
-const LS_MATCHES_KEY = 'wc_espn_v2'; // v2: bust caches holding unmapped STATUS_FIRST_HALF entries
+const LS_MATCHES_KEY = 'wc_espn_v3'; // v3: cached parses now include per-goal details
 
 // All 104 WC matches fall between these dates
 const ESPN_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260611-20260719&limit=200';
@@ -458,6 +458,25 @@ class DataLayer {
       const clockStr = comp.status.displayClock || '';
       const elapsed  = isPre ? null : (parseInt(clockStr) || null);
 
+      // Goal-by-goal detail (scorer, minute, side) from ESPN's details array.
+      // Excludes shootout kicks — those would spam the wire.
+      const goals = [];
+      for (const d of comp.details ?? []) {
+        if (!d.scoringPlay || d.shootout) continue;
+        const side    = String(d.team?.id) === String(home.team.id) ? 'home' : 'away';
+        const scorer  = d.athletesInvolved?.[0]?.shortName
+                     || d.athletesInvolved?.[0]?.displayName || '';
+        goals.push({
+          minute:   d.clock?.displayValue || '',
+          clockSec: d.clock?.value ?? 0,
+          side,
+          scorer,
+          ownGoal:  !!d.ownGoal,
+          penalty:  !!d.penaltyKick,
+        });
+      }
+      goals.sort((a, b) => a.clockSec - b.clockSec);
+
       parsed.push({
         matchId:    parseInt(e.id),
         homeTeam,
@@ -469,6 +488,7 @@ class DataLayer {
         elapsed,
         round:      parseRound(e.season?.slug),
         date:       e.date,
+        goals,
       });
     }
 
@@ -899,6 +919,11 @@ class ScoringEngine {
       const cd = document.getElementById('tournament-countdown');
       if (cd) cd.hidden = true;
     }
+    // Let sidebets.js refresh the wire when bets load/change between polls
+    window.__rerenderWire = () => {
+      this._renderFeed();
+      if (typeof _renderRightRail === 'function') _renderRightRail(this._matches);
+    };
     this._renderLiveBanner();
     this._renderSchedule();
     this._renderGroups();
@@ -1123,7 +1148,7 @@ class ScoringEngine {
     const container = document.getElementById('feed-container');
     if (!container) return;
 
-    const feed = buildActivityFeed(this._matches);
+    const feed = buildWireFeed(this._matches);
     if (!feed.length) {
       container.innerHTML = `
         <div class="feed-empty">
@@ -1134,12 +1159,49 @@ class ScoringEngine {
       return;
     }
 
-    const frag = document.createDocumentFragment();
-    for (const item of feed) {
-      frag.appendChild(_buildFeedItem(item));
+    // Volume line in the page head
+    const sup = document.querySelector('#panel-wire .va4-sup');
+    if (sup) {
+      const today = feed.filter(i => new Date(i.date).toDateString() === new Date().toDateString());
+      const byKind = {};
+      for (const i of today) byKind[i.kind] = (byKind[i.kind] ?? 0) + 1;
+      const plur = (n, w) => `${n} ${w}${n !== 1 ? 's' : ''}`;
+      const parts = [
+        byKind.goal  && plur(byKind.goal, 'goal'),
+        byKind.final && plur(byKind.final, 'final'),
+        byKind.rank  && plur(byKind.rank, 'rank move'),
+        byKind.bet   && plur(byKind.bet, 'bet'),
+      ].filter(Boolean).join(' · ');
+      sup.textContent = today.length
+        ? `League events · ${today.length} today${parts ? ` · ${parts}` : ''}`
+        : 'League events · newest first';
     }
+
+    const frag = document.createDocumentFragment();
+    const wrap = document.createElement('div');
+    wrap.className = 'wire-list';
+    let lastDay = null;
+    const todayStr = new Date().toDateString();
+    for (const item of feed) {
+      const day = new Date(item.date).toDateString();
+      if (day !== lastDay) {
+        lastDay = day;
+        const hdr = document.createElement('div');
+        hdr.className = 'wire-day-header';
+        const d = new Date(item.date);
+        const lbl = d.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase();
+        hdr.textContent = day === todayStr ? `${lbl} · TODAY` : lbl;
+        wrap.appendChild(hdr);
+      }
+      wrap.appendChild(_buildWireRow(item));
+    }
+    frag.appendChild(wrap);
     container.innerHTML = '';
     container.appendChild(frag);
+
+    // Re-apply the active chip filter after re-render
+    const active = document.querySelector('#panel-wire .va4-chip-active');
+    if (active && typeof _applyWireFilter === 'function') _applyWireFilter(active.textContent.trim());
   }
 
   _renderLeaderboard() {
@@ -1518,6 +1580,178 @@ function _buildFeedItem(item) {
         <span class="feed-date">${dateStr} · ${timeStr}</span>
       </div>
     </div>
+  `;
+  return el;
+}
+
+// ── Wire feed (rule-generated event ticker) ────────────────────────────────────
+// Richer than buildActivityFeed (which feeds notifications and stays as-is).
+// Every entry is derived from data already on hand — ESPN matches, goal details,
+// computed standings, and the Firebase side-bet list. No persistence needed.
+//
+// Item: { kind: 'goal'|'final'|'rank'|'giant'|'bet', date, text, owner?, color? }
+
+function _wireRelTime(date) {
+  const ms = Date.now() - new Date(date).getTime();
+  if (ms < 90_000)      return 'now';
+  if (ms < 3_600_000)   return `${Math.floor(ms / 60_000)}m`;
+  if (ms < 86_400_000)  return `${Math.floor(ms / 3_600_000)}h`;
+  return new Date(date).toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function _ownerSpan(owner) {
+  if (!owner) return '';
+  const color = OWNER_COLORS[owner] || '#8090b8';
+  return `<span class="wire-owner" style="color:${color}">${escHtml(owner)}</span>`;
+}
+
+/** One FINAL entry per finished match, with pts for both owners. */
+function _wireFinalText(m) {
+  const bits = [];
+  for (const [team, opp, ts, os] of [
+    [m.homeTeam, m.awayTeam, m.homeScore, m.awayScore],
+    [m.awayTeam, m.homeTeam, m.awayScore, m.homeScore],
+  ]) {
+    const owner = TEAM_OWNER[team];
+    if (!owner) continue;
+    const tier = scoringFor(team);
+    let pts = 0;
+    if (m.round === 'group') {
+      if (ts > os) {
+        pts = tier.group_win;
+        if (tier.giant_killer && TIER_A.has(opp)) pts += tier.giant_killer;
+      } else if (ts === os) pts = tier.group_draw;
+    } else if (ts > os) {
+      pts = tier[ROUND_SCORE_KEY[m.round]] ?? 0;
+    }
+    bits.push(pts > 0
+      ? `${_ownerSpan(owner)} banks +${pts}`
+      : `${_ownerSpan(owner)} clears`);
+  }
+  return `FT — ${escHtml(m.homeTeam)} ${m.homeScore}–${m.awayScore} ${escHtml(m.awayTeam)}.` +
+         (bits.length ? ` ${bits.join(' · ')}.` : '');
+}
+
+/** Replay finished matches chronologically; emit an item per rank move. */
+function _wireRankEvents(matches) {
+  const finished = matches
+    .filter(m => isFinished(m.status))
+    .slice()
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  const out = [];
+  let prev = null;
+  for (let i = 0; i < finished.length; i++) {
+    const ranks = {};
+    for (const s of calculateScores(finished.slice(0, i + 1), null)) ranks[s.name] = s.rank;
+    if (prev) {
+      for (const name of Object.keys(ranks)) {
+        if (ranks[name] === prev[name]) continue;
+        const up  = ranks[name] < prev[name];
+        const ord = n => `${n}${['th','st','nd','rd'][(n%100>10&&n%100<14)?0:Math.min(n%10,4)%4] || 'th'}`;
+        out.push({
+          kind:  'rank',
+          date:  finished[i].date,
+          owner: name,
+          text:  `${_ownerSpan(name)} ${up ? 'climbs' : 'drops'} to ${ord(ranks[name])} (was ${ord(prev[name])}) after ${escHtml(finished[i].homeTeam)}–${escHtml(finished[i].awayTeam)}.`,
+        });
+      }
+    }
+    prev = ranks;
+  }
+  return out;
+}
+
+function buildWireFeed(matches) {
+  const items = [];
+
+  // GOAL — every goal in live + finished matches (all 48 teams are owned)
+  for (const m of matches) {
+    if (!m.goals?.length) continue;
+    if (!isLive(m.status) && !isFinished(m.status)) continue;
+    let h = 0, a = 0;
+    for (const g of m.goals) {
+      g.side === 'home' ? h++ : a++;
+      const team  = g.side === 'home' ? m.homeTeam : m.awayTeam;
+      const owner = TEAM_OWNER[team];
+      const tags  = [g.penalty && 'pen', g.ownGoal && 'OG'].filter(Boolean).join(', ');
+      const when  = new Date(new Date(m.date).getTime() + g.clockSec * 1000);
+      items.push({
+        kind:  'goal',
+        date:  when.toISOString(),
+        owner,
+        text:  `${escHtml(g.minute)} — ${escHtml(g.scorer || 'Goal')}${tags ? ` (${tags})` : ''} for ${escHtml(team)} (${h}–${a}).` +
+               (owner ? ` ${_ownerSpan(owner)}` : ''),
+      });
+    }
+  }
+
+  // FINAL — one per finished match
+  for (const m of matches) {
+    if (!isFinished(m.status)) continue;
+    items.push({ kind: 'final', date: m.date, text: _wireFinalText(m) });
+  }
+
+  // GIANT / ADVANCE — reuse the scoring feed for bonus-type events
+  for (const ev of buildActivityFeed(matches)) {
+    if (ev.event === 'giant_killer') {
+      items.push({
+        kind: 'giant', date: ev.date, owner: ev.owner,
+        text: `Giant Killer — ${escHtml(ev.team)} took down a Tier A side. ${_ownerSpan(ev.owner)} +${ev.pts}.`,
+      });
+    } else if (ev.event === 'group_advance' || ev.event === 'group_1st') {
+      const label = ev.event === 'group_1st' ? 'wins the group' : 'advances from the group';
+      items.push({
+        kind: 'final', date: ev.date, owner: ev.owner,
+        text: `${escHtml(ev.team)} ${label}. ${_ownerSpan(ev.owner)} +${ev.pts}.`,
+      });
+    }
+  }
+
+  // RANK — standings movement after each final
+  items.push(..._wireRankEvents(matches));
+
+  // BET — side bets logged / settled (Firebase list exposed by sidebets.js)
+  for (const b of (window._sideBets || [])) {
+    items.push({
+      kind: 'bet', date: new Date(b.createdAt).toISOString(),
+      text: `Side bet logged · ${_ownerSpan(b.party1)} vs ${_ownerSpan(b.party2)}: ${escHtml(b.description)}. Stakes: ${escHtml(b.stake)}.`,
+    });
+    if (b.status === 'settled') {
+      items.push({
+        kind: 'bet', date: new Date(b.settledAt ?? b.createdAt).toISOString(),
+        text: `Side bet settled · ${_ownerSpan(b.winner)} wins: ${escHtml(b.description)}. Stakes: ${escHtml(b.stake)}.`,
+      });
+    }
+  }
+
+  items.sort((a, b) => new Date(b.date) - new Date(a.date));
+  return items;
+}
+
+const WIRE_KIND_META = {
+  goal:  { label: 'GOAL',  color: '#E0301E' },
+  final: { label: 'FINAL', color: '#1A1A1A' },
+  rank:  { label: 'RANK',  color: '#1F49E8' },
+  giant: { label: 'GIANT', color: '#15803D' },
+  bet:   { label: 'BET',   color: '#0891B2' },
+};
+
+function _buildWireRow(item) {
+  const meta = WIRE_KIND_META[item.kind] || WIRE_KIND_META.final;
+  const d    = new Date(item.date);
+  const abs  = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+  const el = document.createElement('div');
+  el.className = 'wire-row';
+  el.dataset.kind = item.kind;
+  el.innerHTML = `
+    <span class="wire-pill" style="background:${meta.color}">${meta.label}</span>
+    <span class="wire-text">${item.text}</span>
+    <span class="wire-time">
+      <span class="wire-ago">${_wireRelTime(item.date)}</span>
+      <span class="wire-abs">${abs}</span>
+    </span>
   `;
   return el;
 }

@@ -112,6 +112,9 @@ class SideBetsEngine {
 
     // Keep the leaderboard rail in sync
     renderSideBetsRail(this._bets);
+
+    // Bets feed the wire (BET entries) — refresh it when they change
+    if (typeof window.__rerenderWire === 'function') window.__rerenderWire();
   }
 
   _buildHead() {
@@ -301,7 +304,8 @@ class SideBetsEngine {
     if      (r === '1' || r.toLowerCase() === bet.party1.toLowerCase()) bet.winner = bet.party1;
     else if (r === '2' || r.toLowerCase() === bet.party2.toLowerCase()) bet.winner = bet.party2;
     else    bet.winner = r;
-    bet.status = 'settled';
+    bet.status    = 'settled';
+    bet.settledAt = Date.now();
     await this._save();
     this._render();
   }
