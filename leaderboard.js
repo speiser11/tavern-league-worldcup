@@ -112,7 +112,7 @@ function _buildTableTopbar() {
       <div class="lb-big-title">THE TABLE</div>
     </div>
     <div class="lb-view-filters">
-      ${['Overall','Today','Group Stage','Knockouts'].map(f =>
+      ${['Overall','Today'].map(f =>
         `<span class="lb-vf${f === _lbFilter ? ' active' : ''}">${f}</span>`
       ).join('')}
     </div>
