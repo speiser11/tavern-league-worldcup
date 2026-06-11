@@ -334,24 +334,35 @@ function isLive(status)     { return LIVE_STATUSES.has(status); }
 
 // ── ESPN status → internal status ─────────────────────────────────────────────
 
-function mapEspnStatus(espnName) {
+function mapEspnStatus(espnName, state) {
   switch (espnName) {
     case 'STATUS_SCHEDULED':   return 'NS';
     case 'STATUS_IN_PROGRESS': return 'LIVE';
+    case 'STATUS_FIRST_HALF':  return '1H';
+    case 'STATUS_SECOND_HALF': return '2H';
     case 'STATUS_HALFTIME':    return 'HT';
+    case 'STATUS_OVERTIME':    return 'ET';
+    case 'STATUS_SHOOTOUT':    return 'P';
     case 'STATUS_FINAL':       return 'FT';
+    case 'STATUS_FULL_TIME':   return 'FT';
     case 'STATUS_FINAL_AET':   return 'AET';
     case 'STATUS_FINAL_PEN':   return 'PEN';
     case 'STATUS_POSTPONED':   return 'PST';
     case 'STATUS_SUSPENDED':   return 'SUSP';
     case 'STATUS_CANCELED':    return 'CANC';
-    default:                   return espnName;
+    default:
+      // Unknown status name — fall back to ESPN's state field, which is
+      // always one of 'pre' | 'in' | 'post' regardless of the name.
+      if (state === 'in')   return 'LIVE';
+      if (state === 'post') return 'FT';
+      if (state === 'pre')  return 'NS';
+      return espnName;
   }
 }
 
 // ── Data layer ─────────────────────────────────────────────────────────────────
 
-const LS_MATCHES_KEY = 'wc_espn_v1'; // renamed from wc_matches_cache to bust stale API-Football cache
+const LS_MATCHES_KEY = 'wc_espn_v2'; // v2: bust caches holding unmapped STATUS_FIRST_HALF entries
 
 // All 104 WC matches fall between these dates
 const ESPN_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260611-20260719&limit=200';
@@ -441,7 +452,7 @@ class DataLayer {
 
       const st     = comp.status.type;
       const isPre  = st.state === 'pre';
-      const status = mapEspnStatus(st.name);
+      const status = mapEspnStatus(st.name, st.state);
 
       // Parse elapsed minutes from displayClock (e.g. "45'" → 45)
       const clockStr = comp.status.displayClock || '';
@@ -883,6 +894,11 @@ class ScoringEngine {
     _loadedMatches = this._matches; // expose for sidebets game picker
 
     this._updateHeader();
+    // Tournament underway — kill the kickoff countdown regardless of its target time
+    if (this._matches.some(m => isLive(m.status) || isFinished(m.status))) {
+      const cd = document.getElementById('tournament-countdown');
+      if (cd) cd.hidden = true;
+    }
     this._renderLiveBanner();
     this._renderSchedule();
     this._renderGroups();
