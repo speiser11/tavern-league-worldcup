@@ -1686,10 +1686,11 @@ function buildWireFeed(matches) {
     }
   }
 
-  // FINAL — one per finished match
+  // FINAL — one per finished match; timestamp at kickoff+95min so it sorts after goals
   for (const m of matches) {
     if (!isFinished(m.status)) continue;
-    items.push({ kind: 'final', date: m.date, text: _wireFinalText(m) });
+    const ftDate = new Date(new Date(m.date).getTime() + 95 * 60 * 1000).toISOString();
+    items.push({ kind: 'final', date: ftDate, text: _wireFinalText(m) });
   }
 
   // GIANT / ADVANCE — reuse the scoring feed for bonus-type events
