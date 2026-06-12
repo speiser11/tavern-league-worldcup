@@ -4071,6 +4071,23 @@ a:hover { color: var(--red); }
   font-weight: 400;
   text-transform: uppercase;
   border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+#panel-schedule .sched-round-header.is-today {
+  background: var(--pitch);
+}
+
+#panel-schedule .sched-day-rounds {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+  text-transform: uppercase;
 }
 
 #panel-schedule .sched-group-section {

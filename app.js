@@ -991,53 +991,56 @@ class ScoringEngine {
       return;
     }
 
-    const ROUND_ORDER = ['group', 'round_of_32', 'round_of_16', 'quarterfinal', 'semifinal', '3rd-place-match', 'final'];
     const ROUND_LABELS = {
-      group:              'Group Stage',
-      round_of_32:        'Round of 32',
-      round_of_16:        'Round of 16',
-      quarterfinal:       'Quarterfinals',
-      semifinal:          'Semifinals',
-      '3rd-place-match':  '3rd Place Match',
-      final:              'Final',
+      group:             'Group Stage',
+      round_of_32:       'R32',
+      round_of_16:       'R16',
+      quarterfinal:      'QF',
+      semifinal:         'SF',
+      '3rd-place-match': '3rd Place',
+      final:             'Final',
     };
 
+    // Group matches by calendar date, sorted chronologically
+    const byDay = {};
+    const sorted = [...this._matches].sort((a, b) => new Date(a.date) - new Date(b.date));
+    for (const m of sorted) {
+      const key = new Date(m.date).toDateString();
+      (byDay[key] = byDay[key] || []).push(m);
+    }
+
     const frag = document.createDocumentFragment();
+    const todayStr = new Date().toDateString();
 
-    for (const round of ROUND_ORDER) {
-      const roundMatches = this._matches
-        .filter(m => m.round === round)
-        .sort((a, b) => new Date(a.date) - new Date(b.date));
-      if (!roundMatches.length) continue;
-
+    for (const [dayKey, dayMatches] of Object.entries(byDay)) {
       const section = document.createElement('div');
       section.className = 'sched-section';
-      section.dataset.roundType = round === 'group' ? 'group' : 'knockout';
+      // Mark section round-type for filter chips (use majority round in the day)
+      const hasGroup   = dayMatches.some(m => m.round === 'group');
+      const hasKnockout = dayMatches.some(m => m.round !== 'group');
+      section.dataset.roundType = hasGroup && !hasKnockout ? 'group'
+                                 : !hasGroup && hasKnockout ? 'knockout'
+                                 : 'mixed';
+
+      const d = new Date(dayMatches[0].date);
+      const isToday = dayKey === todayStr;
+      const dateLabel = isToday
+        ? 'TODAY'
+        : d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+
+      // Round tags for days with multiple rounds
+      const rounds = [...new Set(dayMatches.map(m => ROUND_LABELS[m.round] || m.round))];
+      const roundTag = rounds.length === 1 && rounds[0] === 'Group Stage' ? '' : rounds.join(' · ');
 
       const rh = document.createElement('div');
-      rh.className = 'sched-round-header';
-      rh.textContent = ROUND_LABELS[round] || round;
+      rh.className = `sched-round-header${isToday ? ' is-today' : ''}`;
+      rh.innerHTML = `<span>${dateLabel}</span>${roundTag ? `<span class="sched-day-rounds">${roundTag}</span>` : ''}`;
       section.appendChild(rh);
 
-      if (round === 'group') {
-        // Sub-group by group letter
-        const byGroup = {};
-        for (const m of roundMatches) {
-          const g = findTeamGroup(m.homeTeam) || findTeamGroup(m.awayTeam) || '?';
-          (byGroup[g] = byGroup[g] || []).push(m);
-        }
-        for (const groupLetter of Object.keys(byGroup).sort()) {
-          const gs = document.createElement('div');
-          gs.className = 'sched-group-section';
-          const gh = document.createElement('div');
-          gh.className = 'sched-group-header';
-          gh.textContent = `Group ${groupLetter}`;
-          gs.appendChild(gh);
-          for (const m of byGroup[groupLetter]) gs.appendChild(_buildMatchRow(m));
-          section.appendChild(gs);
-        }
-      } else {
-        for (const m of roundMatches) section.appendChild(_buildMatchRow(m));
+      for (const m of dayMatches) {
+        const row = _buildMatchRow(m);
+        row.dataset.roundType = m.round === 'group' ? 'group' : 'knockout';
+        section.appendChild(row);
       }
 
       frag.appendChild(section);

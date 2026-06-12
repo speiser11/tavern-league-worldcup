@@ -764,25 +764,25 @@ function _applyScheduleFilter(label) {
   if (!container) return;
 
   for (const section of container.querySelectorAll('.sched-section')) {
-    const rt = section.dataset.roundType || '';
-
-    // Decide whether to show this section at all
-    if (label === 'Group stage'  && rt !== 'group')   { section.style.display = 'none'; continue; }
-    if (label === 'Knockouts'    && rt !== 'knockout') { section.style.display = 'none'; continue; }
-    section.style.display = '';
-
-    // For "Live + upcoming", also hide finished matches inside visible sections
     const rows = section.querySelectorAll('.sched-match');
     let anyVisible = false;
+
     for (const row of rows) {
-      const isLive     = row.classList.contains('is-live');
-      const isFinished = row.classList.contains('is-final');
-      const show = label !== 'Live + upcoming' || isLive || !isFinished;
+      const rt         = row.dataset.roundType || '';
+      const isLiveRow  = row.classList.contains('is-live');
+      const isDoneRow  = row.classList.contains('is-final');
+
+      let show = true;
+      if (label === 'Group stage'    && rt !== 'group')    show = false;
+      if (label === 'Knockouts'      && rt !== 'knockout') show = false;
+      if (label === 'Live + upcoming' && isDoneRow && !isLiveRow) show = false;
+
       row.style.display = show ? '' : 'none';
       if (show) anyVisible = true;
     }
-    // Hide the whole section if "Live + upcoming" left nothing in it
-    if (label === 'Live + upcoming' && !anyVisible) section.style.display = 'none';
+
+    // Hide entire day section if nothing is visible in it
+    section.style.display = anyVisible ? '' : 'none';
   }
 }
 
