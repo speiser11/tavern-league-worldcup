@@ -4131,8 +4131,8 @@ a:hover { color: var(--red); }
   gap: 6px;
 }
 
-#panel-schedule .sched-home { align-items: flex-end; }
-#panel-schedule .sched-home .sched-team-inner { flex-direction: row-reverse; }
+#panel-schedule .sched-home { align-items: center; }
+#panel-schedule .sched-away { align-items: center; }
 
 #panel-schedule .sched-tname {
   font-family: 'Inter', sans-serif;
