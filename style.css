@@ -4145,11 +4145,26 @@ a:hover { color: var(--red); }
 
 #panel-schedule .sched-center { text-align: center; }
 
-#panel-schedule .sched-owner-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+#panel-schedule .sched-owner-name {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+#panel-schedule .sched-owner-pts {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink3);
+}
+
+#panel-schedule .sched-owner-pts.has-pts {
+  color: var(--pitch-ink);
 }
 
 #panel-schedule .sched-match.has-owner { background: #fafaf8; }
