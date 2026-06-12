@@ -22,6 +22,7 @@ const NE_DEFAULT_PREFS = {
   match_result:       true,
   leaderboard_change: true,
   match_starting:     true,
+  halftime:           true,
   elimination:        true,
 };
 
@@ -30,6 +31,7 @@ const NE_TYPE_LABELS = {
   match_result:       'Match results',
   leaderboard_change: 'Standings changes',
   match_starting:     'Match starting soon',
+  halftime:           'Halftime scores',
   elimination:        'Team eliminated',
 };
 
@@ -93,6 +95,9 @@ class NotificationEngine {
 
     if (prefs.match_starting)
       toSend.push(...NotificationEngine._detectStartingSoon(matches, sent));
+
+    if (prefs.halftime)
+      toSend.push(...NotificationEngine._detectHalftime(matches, prevState, sent));
 
     for (const n of toSend) {
       sent.add(n.key);
@@ -307,6 +312,28 @@ class NotificationEngine {
         key,
         title: `⚽ ${hf} ${m.homeTeam} vs ${m.awayTeam} ${af}`,
         body:  `Kicks off in ${mins}min${owners.length ? ` · ${owners.join(' & ')}` : ''}`,
+      });
+    }
+    return events;
+  }
+
+  static _detectHalftime(matches, prevState, sent) {
+    const events = [];
+    for (const m of matches) {
+      if (m.status !== 'HT') continue;
+      if (!TEAM_OWNER[m.homeTeam] && !TEAM_OWNER[m.awayTeam]) continue;
+
+      const key = `halftime_${m.matchId}`;
+      if (sent.has(key)) continue;
+      if (prevState.matches?.[m.matchId]?.status === 'HT') continue;
+
+      const hf    = TEAM_FLAGS[m.homeTeam] || '';
+      const af    = TEAM_FLAGS[m.awayTeam] || '';
+      const owners = [TEAM_OWNER[m.homeTeam], TEAM_OWNER[m.awayTeam]].filter(Boolean);
+      events.push({
+        key,
+        title: `⏸ HT — ${hf} ${m.homeTeam} ${m.homeScore}–${m.awayScore} ${m.awayTeam} ${af}`,
+        body:  owners.length ? `${owners.join(' & ')} — halftime` : 'Halftime',
       });
     }
     return events;

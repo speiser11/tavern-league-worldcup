@@ -1242,13 +1242,24 @@ function _buildMatchRow(m) {
 
   const statusLabel = finished ? 'FT' : live ? (m.elapsed != null ? `${m.elapsed}'` : '●') : timeStr;
 
+  const homeOwner = TEAM_OWNER[m.homeTeam];
+  const awayOwner = TEAM_OWNER[m.awayTeam];
+  const homeColor = homeOwner ? (OWNER_COLORS[homeOwner] || '#9A9A93') : null;
+  const awayColor = awayOwner ? (OWNER_COLORS[awayOwner] || '#9A9A93') : null;
+  const homeOwnerHtml = homeOwner
+    ? `<span class="sched-owner-dot" style="background:${homeColor}" title="${escHtml(homeOwner)}"></span>`
+    : '';
+  const awayOwnerHtml = awayOwner
+    ? `<span class="sched-owner-dot" style="background:${awayColor}" title="${escHtml(awayOwner)}"></span>`
+    : '';
+
   const row = document.createElement('div');
-  row.className = `sched-match${live ? ' is-live' : ''}${finished ? ' is-final' : ''}`;
+  row.className = `sched-match${live ? ' is-live' : ''}${finished ? ' is-final' : ''}${(homeOwner || awayOwner) ? ' has-owner' : ''}`;
   row.innerHTML = `
     <span class="sched-date">${dateStr}</span>
-    <span class="sched-team sched-home"><span class="sched-flag">${homeFlag}</span><span class="sched-tname">${m.homeTeam}</span></span>
+    <span class="sched-team sched-home">${homeOwnerHtml}<span class="sched-flag">${homeFlag}</span><span class="sched-tname">${m.homeTeam}</span></span>
     <span class="sched-center">${centerHtml}</span>
-    <span class="sched-team sched-away"><span class="sched-tname">${m.awayTeam}</span><span class="sched-flag">${awayFlag}</span></span>
+    <span class="sched-team sched-away"><span class="sched-tname">${m.awayTeam}</span><span class="sched-flag">${awayFlag}</span>${awayOwnerHtml}</span>
     <span class="sched-status">${statusLabel}</span>
   `;
   return row;

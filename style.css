@@ -4145,6 +4145,16 @@ a:hover { color: var(--red); }
 
 #panel-schedule .sched-center { text-align: center; }
 
+#panel-schedule .sched-owner-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+#panel-schedule .sched-match.has-owner { background: #fafaf8; }
+#panel-schedule .sched-match.has-owner.is-live { background: #fff8f8; }
+
 #panel-schedule .sched-score {
   font-family: 'Anton', sans-serif;
   font-size: 20px;
