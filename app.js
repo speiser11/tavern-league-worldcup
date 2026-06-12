@@ -1277,9 +1277,15 @@ function _buildMatchRow(m) {
   row.className = `sched-match${live ? ' is-live' : ''}${finished ? ' is-final' : ''}${(homeOwner || awayOwner) ? ' has-owner' : ''}`;
   row.innerHTML = `
     <span class="sched-date">${dateStr}</span>
-    <span class="sched-team sched-home">${_ownerTag(homeOwner, homeColor, homePts)}<span class="sched-flag">${homeFlag}</span><span class="sched-tname">${m.homeTeam}</span></span>
+    <span class="sched-team sched-home">
+      <span class="sched-team-inner"><span class="sched-flag">${homeFlag}</span><span class="sched-tname">${m.homeTeam}</span></span>
+      ${_ownerTag(homeOwner, homeColor, homePts)}
+    </span>
     <span class="sched-center">${centerHtml}</span>
-    <span class="sched-team sched-away"><span class="sched-tname">${m.awayTeam}</span><span class="sched-flag">${awayFlag}</span>${_ownerTag(awayOwner, awayColor, awayPts)}</span>
+    <span class="sched-team sched-away">
+      <span class="sched-team-inner"><span class="sched-flag">${awayFlag}</span><span class="sched-tname">${m.awayTeam}</span></span>
+      ${_ownerTag(awayOwner, awayColor, awayPts)}
+    </span>
     <span class="sched-status">${statusLabel}</span>
   `;
   return row;

@@ -916,6 +916,8 @@ a:hover { color: var(--red); }
   }
   .sched-flag { font-size: 0.95rem; }
   .sched-score { font-size: 1rem; }
+
+  #panel-schedule .sched-owner-name { font-size: 9px; }
 }
 
 /* ── Footer ───────────────────────────────────────────────────────────────── */
@@ -4119,11 +4121,18 @@ a:hover { color: var(--red); }
 
 #panel-schedule .sched-team {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 2px;
 }
 
-#panel-schedule .sched-home { justify-content: flex-end; flex-direction: row-reverse; }
+#panel-schedule .sched-team-inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#panel-schedule .sched-home { align-items: flex-end; }
+#panel-schedule .sched-home .sched-team-inner { flex-direction: row-reverse; }
 
 #panel-schedule .sched-tname {
   font-family: 'Inter', sans-serif;

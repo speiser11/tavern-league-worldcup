@@ -444,7 +444,12 @@ class NotificationEngine {
       e.stopPropagation();
       const open = panel.classList.toggle('is-open');
       bell.setAttribute('aria-expanded', String(open));
-      if (open) NotificationEngine._renderPanel();
+      if (open) {
+        // Position below header, accounting for mobile header height
+        const headerH = document.querySelector('.site-header')?.getBoundingClientRect().height ?? 56;
+        panel.style.top = (headerH + 6) + 'px';
+        NotificationEngine._renderPanel();
+      }
     });
 
     document.addEventListener('click', e => {
