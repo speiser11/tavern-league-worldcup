@@ -2016,18 +2016,18 @@ a:hover { color: var(--red); }
   border: 1.5px solid var(--bg-card);
 }
 
-/* Preferences panel */
+/* Preferences panel — must use fixed positioning to escape header stacking context */
 .notif-panel {
   display: none;
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
+  position: fixed;
+  top: 56px; /* approx header height — adjusted by JS if needed */
+  right: 12px;
   width: 280px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow-lift);
-  z-index: 200;
+  box-shadow: 0 8px 32px rgba(0,0,0,.18);
+  z-index: 9999;
   overflow: hidden;
 }
 
