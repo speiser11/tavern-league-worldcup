@@ -1,99 +1,86 @@
 /**
  * notification-engine.js
- * Push notification integration via OneSignal (free tier).
+ * Native browser push notifications — no external service required.
+ * Works as a PWA on iOS 16.4+ when added to home screen.
  *
- * Requires in config.js:
- *   CONFIG.ONESIGNAL_APP_ID      — from onesignal.com dashboard
- *   CONFIG.ONESIGNAL_REST_API_KEY — Settings > Keys & IDs > REST API Key
- *     NOTE: This key is visible in page source. Acceptable for a private
- *     friend-group app — it can only send notifications to your own app's
- *     subscribers and cannot read data or access other apps.
- *
- * Depends on globals from app.js (loaded before this script):
+ * Depends on globals from app.js:
  *   calculateScores, determineAdvancedTeams, computeGroupStandings,
  *   findTeamGroup, PARTICIPANTS, TEAM_FLAGS, TEAM_OWNER, OWNER_COLORS,
- *   SCORING, ROUND_SCORE_KEY, TIER_A, GROUPS, isFinished, isLive
- *
- * Depends on escHtml from leaderboard.js (loaded before this script).
+ *   SCORING, ROUND_SCORE_KEY, TIER_A, GROUPS, isFinished, isLive, scoringFor
+ * Depends on escHtml from leaderboard.js.
  */
 
 'use strict';
 
-// ── Storage keys ───────────────────────────────────────────────────────────────
 const NE_PREFS_KEY    = 'wc_notif_prefs';
 const NE_SENT_KEY     = 'wc_notif_sent';
 const NE_STATE_KEY    = 'wc_notif_state';
 const NE_PROMPTED_KEY = 'wc_notif_prompted';
 
-// ── Defaults ───────────────────────────────────────────────────────────────────
 const NE_DEFAULT_PREFS = {
-  match_result:        true,
-  elimination:         true,
-  leaderboard_change:  true,
-  match_starting:      true,
+  goals:              true,
+  match_result:       true,
+  leaderboard_change: true,
+  match_starting:     true,
+  elimination:        true,
 };
 
 const NE_TYPE_LABELS = {
-  match_result:        'Match results',
-  elimination:         'Team eliminated',
-  leaderboard_change:  'Leaderboard changes',
-  match_starting:      'Match starting soon',
+  goals:              'Goals scored',
+  match_result:       'Match results',
+  leaderboard_change: 'Standings changes',
+  match_starting:     'Match starting soon',
+  elimination:        'Team eliminated',
 };
 
-// ── Module state ───────────────────────────────────────────────────────────────
-let _osReady = false;   // OneSignal SDK initialized
-
-// ── Main class ─────────────────────────────────────────────────────────────────
+const NE_ICON = '/tavern-league-worldcup/icon.svg';
 
 class NotificationEngine {
 
-  // ── Initialization ───────────────────────────────────────────────────────────
+  // ── Init ─────────────────────────────────────────────────────────────────────
 
   static init() {
-    if (!CONFIG?.ONESIGNAL_APP_ID) return;  // no-op if not configured
+    if (!('Notification' in window)) return;
 
-    // OneSignal v16 deferred init pattern
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    OneSignalDeferred.push(async function (OneSignal) {
-      try {
-        await OneSignal.init({
-          appId:        CONFIG.ONESIGNAL_APP_ID,
-          notifyButton: { enable: false },  // using our own bell icon
-        });
-        _osReady = true;
-        NotificationEngine._updateBellState();
-      } catch (e) {
-        console.warn('[Notifications] OneSignal init failed:', e.message);
-      }
-    });
-
+    NotificationEngine._registerSW();
     NotificationEngine._initUI();
 
-    // Polite first-visit opt-in prompt — never auto-requests permission
-    if (!NotificationEngine._wasPrompted()) {
-      setTimeout(() => NotificationEngine._showOptInPrompt(), 3500);
+    if (!NotificationEngine._wasPrompted() && Notification.permission === 'default') {
+      setTimeout(() => NotificationEngine._showOptInPrompt(), 4000);
+    }
+  }
+
+  static async _registerSW() {
+    if (!('serviceWorker' in navigator)) return;
+    try {
+      await navigator.serviceWorker.register('/tavern-league-worldcup/sw.js');
+    } catch (e) {
+      console.warn('[Notifications] SW registration failed:', e.message);
     }
   }
 
   // ── Called after every data fetch ────────────────────────────────────────────
 
   static checkAndNotify(matches) {
-    if (!CONFIG?.ONESIGNAL_APP_ID || !CONFIG?.ONESIGNAL_REST_API_KEY) return;
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
 
     const prevState = NotificationEngine._loadState();
     const newState  = NotificationEngine._buildState(matches);
     const sent      = NotificationEngine._loadSent();
     const prefs     = NotificationEngine._loadPrefs();
 
-    // First-ever load: pre-populate sent set so we don't flood historical events
     if (!prevState.initialised) {
-      NotificationEngine._seedSentFromHistory(matches, sent);
+      NotificationEngine._seedSent(matches, sent);
       NotificationEngine._saveState({ ...newState, initialised: true });
       NotificationEngine._saveSent(sent);
       return;
     }
 
     const toSend = [];
+
+    if (prefs.goals)
+      toSend.push(...NotificationEngine._detectGoals(matches, prevState, sent));
 
     if (prefs.match_result)
       toSend.push(...NotificationEngine._detectResults(matches, prevState, sent));
@@ -116,7 +103,48 @@ class NotificationEngine {
     NotificationEngine._saveSent(sent);
   }
 
-  // ── Event detectors ───────────────────────────────────────────────────────────
+  // ── Detectors ─────────────────────────────────────────────────────────────────
+
+  static _detectGoals(matches, prevState, sent) {
+    const events = [];
+    for (const m of matches) {
+      if (!isLive(m.status) && !isFinished(m.status)) continue;
+      if (!m.goals?.length) continue;
+
+      const prevGoalCount = prevState.goalCounts?.[m.matchId] ?? 0;
+      if (m.goals.length <= prevGoalCount) continue;
+
+      // Only fire for newly detected goals
+      const newGoals = m.goals.slice(prevGoalCount);
+      let h = 0, a = 0;
+      for (const g of m.goals) { g.side === 'home' ? h++ : a++; }
+      // Re-count from scratch for score context
+      let rh = 0, ra = 0;
+      for (let i = 0; i < m.goals.length; i++) {
+        const g = m.goals[i];
+        g.side === 'home' ? rh++ : ra++;
+        if (i < prevGoalCount) continue;
+
+        const team  = g.side === 'home' ? m.homeTeam : m.awayTeam;
+        const opp   = g.side === 'home' ? m.awayTeam : m.homeTeam;
+        const owner = TEAM_OWNER[team];
+        const flag  = TEAM_FLAGS[team] || '';
+        const key   = `goal_${m.matchId}_${i}`;
+        if (sent.has(key)) continue;
+
+        const scorer = g.scorer ? g.scorer.split(' ').pop() : 'Goal';
+        const tags   = [g.penalty && 'pen', g.ownGoal && 'OG'].filter(Boolean).join(', ');
+        const score  = `${rh}–${ra}`;
+
+        events.push({
+          key,
+          title: `${flag} GOAL — ${team} ${score}`,
+          body:  `${g.minute} ${scorer}${tags ? ` (${tags})` : ''}${owner ? ` · ${owner}'s team` : ''} vs ${opp}`,
+        });
+      }
+    }
+    return events;
+  }
 
   static _detectResults(matches, prevState, sent) {
     const events = [];
@@ -125,9 +153,8 @@ class NotificationEngine {
 
     for (const m of matches) {
       if (!isFinished(m.status) || m.homeScore === null) continue;
-
       const prevM = prevState.matches?.[m.matchId];
-      if (prevM && isFinished(prevM.status)) continue;  // already was finished
+      if (prevM && isFinished(prevM.status)) continue;
 
       for (const [teamName, isHome] of [[m.homeTeam, true], [m.awayTeam, false]]) {
         const owner = TEAM_OWNER[teamName];
@@ -142,30 +169,29 @@ class NotificationEngine {
         const flag = TEAM_FLAGS[teamName] || '';
 
         if (ts > os) {
-          const tier   = scoringFor(teamName);
-          const opp    = isHome ? m.awayTeam : m.homeTeam;
-          const gkBonus = (tier.giant_killer && TIER_A.has(opp)) ? tier.giant_killer : 0;
-          const pts = m.round === 'group'
+          const tier    = scoringFor(teamName);
+          const gkBonus = (!TIER_A.has(teamName) && TIER_A.has(opp)) ? (tier.giant_killer ?? 0) : 0;
+          const pts     = m.round === 'group'
             ? tier.group_win + gkBonus
-            : (tier[ROUND_SCORE_KEY[m.round]] ?? 0) + gkBonus;
-          const rank = rankMap[owner];
-          const rankStr = rank ? ` (now ${rank}${_ordinal(rank)})` : '';
+            : (tier[ROUND_SCORE_KEY[m.round]] ?? 0);
+          const rank    = rankMap[owner];
           events.push({
             key,
-            title: `✅ ${flag} ${teamName} win!`,
-            body:  `${owner} +${pts} pts${rankStr} · ${ts}–${os} vs ${opp}`,
+            title: `${flag} ${teamName} win ${ts}–${os}`,
+            body:  `${owner} +${pts} pts${rank ? ` · now ${rank}${_ordinal(rank)}` : ''}${gkBonus ? ' 🔪 Giant Killer!' : ''}`,
           });
         } else if (ts === os) {
+          const tier = scoringFor(teamName);
           events.push({
             key,
-            title: `➖ ${flag} ${teamName} draw`,
-            body:  `${owner} +1 pt · ${ts}–${os} vs ${opp}`,
+            title: `${flag} ${teamName} draw ${ts}–${os}`,
+            body:  `${owner} +${tier.group_draw} pts vs ${opp}`,
           });
         } else {
           events.push({
             key,
-            title: `❌ ${flag} ${teamName} lose`,
-            body:  `${owner} earns no pts · ${ts}–${os} vs ${opp}`,
+            title: `${flag} ${teamName} lose ${ts}–${os}`,
+            body:  `${owner} earns 0 pts vs ${opp}`,
           });
         }
       }
@@ -175,16 +201,14 @@ class NotificationEngine {
 
   static _detectEliminations(matches, prevState, sent) {
     const events = [];
-    const advanced = determineAdvancedTeams(matches, null);
 
-    // Group stage: owned team ranked 4th in a completed group
     const standings = computeGroupStandings(matches);
     for (const [g, rows] of Object.entries(standings)) {
-      const doneCount = matches.filter(m =>
+      const done = matches.filter(m =>
         m.round === 'group' && isFinished(m.status) &&
         (findTeamGroup(m.homeTeam) === g || findTeamGroup(m.awayTeam) === g)
       ).length;
-      if (doneCount < 6) continue;
+      if (done < 6) continue;
 
       const last = rows[3];
       if (!last) continue;
@@ -192,21 +216,17 @@ class NotificationEngine {
       if (!owner) continue;
 
       const key = `elim_group_${last.team}`;
-      if (sent.has(key)) continue;
-      if (prevState.eliminated?.includes(last.team)) continue;
+      if (sent.has(key) || prevState.eliminated?.includes(last.team)) continue;
 
       const flag    = TEAM_FLAGS[last.team] || '';
       const partner = (PARTICIPANTS[owner] || []).find(t => t !== last.team);
       events.push({
         key,
-        title: `💀 ${flag} ${last.team} eliminated`,
-        body:  partner
-          ? `${owner}'s hopes rest on ${partner}.`
-          : `${owner} is out of the running.`,
+        title: `${flag} ${last.team} eliminated`,
+        body:  partner ? `${owner}'s hopes rest on ${partner}.` : `${owner} is out of the running.`,
       });
     }
 
-    // Knockout: owned team just lost
     for (const m of matches) {
       if (m.round === 'group' || !isFinished(m.status) || m.homeScore === null) continue;
       const prevM = prevState.matches?.[m.matchId];
@@ -229,14 +249,13 @@ class NotificationEngine {
         const partner = (PARTICIPANTS[owner] || []).find(t => t !== teamName);
         events.push({
           key,
-          title: `💀 ${flag} ${teamName} eliminated`,
+          title: `${flag} ${teamName} eliminated`,
           body:  partner
-            ? `Out in the ${round}. ${owner}'s hopes rest on ${partner}.`
-            : `${owner} is eliminated in the ${round}.`,
+            ? `Out in ${round}. ${owner}'s hopes rest on ${partner}.`
+            : `${owner} is eliminated in ${round}.`,
         });
       }
     }
-
     return events;
   }
 
@@ -257,11 +276,11 @@ class NotificationEngine {
     if (sent.has(key)) return [];
 
     const icon  = top.newRank === 1 ? '🥇' : top.newRank === 2 ? '🥈' : '📊';
-    const extra = movers.length > 1 ? ` (${movers.length - 1} more moved)` : '';
+    const extra = movers.length > 1 ? ` (${movers.length - 1} others moved)` : '';
     return [{
       key,
-      title: `${icon} Standings update`,
-      body:  `${top.name} moves to ${top.newRank}${_ordinal(top.newRank)}!${extra}`,
+      title: `${icon} ${top.name} moves to ${top.newRank}${_ordinal(top.newRank)}`,
+      body:  `Standings update${extra}`,
     }];
   }
 
@@ -273,9 +292,9 @@ class NotificationEngine {
       if (m.status !== 'NS') continue;
       if (!TEAM_OWNER[m.homeTeam] && !TEAM_OWNER[m.awayTeam]) continue;
 
-      const kickoff  = new Date(m.date).getTime();
-      const minsOut  = (kickoff - now) / 60000;
-      if (minsOut < 5 || minsOut > 20) continue;   // only fire in 5–20 min window
+      const kickoff = new Date(m.date).getTime();
+      const minsOut = (kickoff - now) / 60000;
+      if (minsOut < 5 || minsOut > 20) continue;
 
       const key = `starting_${m.matchId}`;
       if (sent.has(key)) continue;
@@ -283,66 +302,88 @@ class NotificationEngine {
       const hf   = TEAM_FLAGS[m.homeTeam] || '';
       const af   = TEAM_FLAGS[m.awayTeam] || '';
       const mins = Math.round(minsOut);
+      const owners = [TEAM_OWNER[m.homeTeam], TEAM_OWNER[m.awayTeam]].filter(Boolean);
       events.push({
         key,
         title: `⚽ ${hf} ${m.homeTeam} vs ${m.awayTeam} ${af}`,
-        body:  `Kicks off in ${mins} minute${mins !== 1 ? 's' : ''}`,
+        body:  `Kicks off in ${mins}min${owners.length ? ` · ${owners.join(' & ')}` : ''}`,
       });
     }
     return events;
   }
 
-  // ── OneSignal REST API ────────────────────────────────────────────────────────
+  // ── Send ──────────────────────────────────────────────────────────────────────
 
-  static async _send(title, body, idempotencyKey) {
-    if (!CONFIG.ONESIGNAL_REST_API_KEY) return;
+  static async _send(title, body, tag) {
+    if (Notification.permission !== 'granted') return;
+    const opts = { body, icon: NE_ICON, badge: NE_ICON, tag };
     try {
-      const res = await fetch('https://onesignal.com/api/v1/notifications', {
-        method:  'POST',
-        headers: {
-          'Content-Type':  'application/json',
-          'Authorization': `Basic ${CONFIG.ONESIGNAL_REST_API_KEY}`,
-        },
-        body: JSON.stringify({
-          app_id:            CONFIG.ONESIGNAL_APP_ID,
-          included_segments: ['All'],
-          headings:          { en: title },
-          contents:          { en: body },
-          idempotency_key:   idempotencyKey,
-          url:               CONFIG.SITE_URL || '',
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        console.warn('[Notifications] Send failed:', err.errors || res.status);
+      const reg = await navigator.serviceWorker?.getRegistration?.();
+      if (reg?.showNotification) {
+        await reg.showNotification(title, opts);
+      } else {
+        new Notification(title, opts);
       }
     } catch (e) {
-      console.warn('[Notifications] Send error:', e.message);
+      console.warn('[Notifications] Send failed:', e.message);
     }
   }
 
-  // ── First-load seeding (prevent historical flood) ─────────────────────────────
+  // ── Subscription ──────────────────────────────────────────────────────────────
 
-  static _seedSentFromHistory(matches, sent) {
-    const advanced = determineAdvancedTeams(matches, null);
+  static _isSubscribed() {
+    return 'Notification' in window && Notification.permission === 'granted';
+  }
+
+  static async _subscribe() {
+    if (!('Notification' in window)) return false;
+    const perm = await Notification.requestPermission();
+    NotificationEngine._updateBellState();
+    return perm === 'granted';
+  }
+
+  // ── State ─────────────────────────────────────────────────────────────────────
+
+  static _buildState(matches) {
+    const ms = {}, goalCounts = {};
+    for (const m of matches) {
+      ms[m.matchId] = { status: m.status, homeScore: m.homeScore, awayScore: m.awayScore };
+      goalCounts[m.matchId] = m.goals?.length ?? 0;
+    }
+    const scores    = calculateScores(matches);
+    const ranks     = Object.fromEntries(scores.map(s => [s.name, s.rank]));
+    const scoreHash = scores.map(s => `${s.name}:${s.totalScore}`).join('|');
+    const eliminated = [];
+    const standings  = computeGroupStandings(matches);
+    for (const [g, rows] of Object.entries(standings)) {
+      const done = matches.filter(m =>
+        m.round === 'group' && isFinished(m.status) &&
+        (findTeamGroup(m.homeTeam) === g || findTeamGroup(m.awayTeam) === g)
+      ).length;
+      if (done >= 6 && rows[3]) eliminated.push(rows[3].team);
+    }
+    return { matches: ms, ranks, scoreHash, eliminated, goalCounts };
+  }
+
+  static _seedSent(matches, sent) {
     for (const m of matches) {
       if (!isFinished(m.status)) continue;
       for (const [teamName] of [[m.homeTeam], [m.awayTeam]]) {
         if (TEAM_OWNER[teamName]) sent.add(`result_${m.matchId}_${teamName}`);
       }
+      if (m.goals?.length) {
+        for (let i = 0; i < m.goals.length; i++) sent.add(`goal_${m.matchId}_${i}`);
+      }
     }
-    // Seed group eliminations
     const standings = computeGroupStandings(matches);
     for (const [g, rows] of Object.entries(standings)) {
-      const doneCount = matches.filter(m =>
+      const done = matches.filter(m =>
         m.round === 'group' && isFinished(m.status) &&
         (findTeamGroup(m.homeTeam) === g || findTeamGroup(m.awayTeam) === g)
       ).length;
-      if (doneCount >= 6 && rows[3] && TEAM_OWNER[rows[3].team]) {
+      if (done >= 6 && rows[3] && TEAM_OWNER[rows[3].team])
         sent.add(`elim_group_${rows[3].team}`);
-      }
     }
-    // Seed KO eliminations
     for (const m of matches) {
       if (m.round === 'group' || !isFinished(m.status) || m.homeScore === null) continue;
       for (const [teamName, isHome] of [[m.homeTeam, true], [m.awayTeam, false]]) {
@@ -354,92 +395,14 @@ class NotificationEngine {
     }
   }
 
-  // ── State ─────────────────────────────────────────────────────────────────────
-
-  static _buildState(matches) {
-    const ms = {};
-    for (const m of matches) {
-      ms[m.matchId] = { status: m.status, homeScore: m.homeScore, awayScore: m.awayScore };
-    }
-    const scores = calculateScores(matches);
-    const ranks  = Object.fromEntries(scores.map(s => [s.name, s.rank]));
-    const scoreHash = scores.map(s => `${s.name}:${s.totalScore}`).join('|');
-    // Track eliminated teams for dedup
-    const eliminated = [];
-    const standings  = computeGroupStandings(matches);
-    for (const [g, rows] of Object.entries(standings)) {
-      const done = matches.filter(m =>
-        m.round === 'group' && isFinished(m.status) &&
-        (findTeamGroup(m.homeTeam) === g || findTeamGroup(m.awayTeam) === g)
-      ).length;
-      if (done >= 6 && rows[3]) eliminated.push(rows[3].team);
-    }
-    return { matches: ms, ranks, scoreHash, eliminated };
-  }
-
-  static _loadState() {
-    try {
-      const raw = localStorage.getItem(NE_STATE_KEY);
-      return raw ? JSON.parse(raw) : {};
-    } catch { return {}; }
-  }
-
-  static _saveState(s) {
-    try { localStorage.setItem(NE_STATE_KEY, JSON.stringify(s)); } catch {}
-  }
-
-  static _loadSent() {
-    try { return new Set(JSON.parse(localStorage.getItem(NE_SENT_KEY) || '[]')); }
-    catch { return new Set(); }
-  }
-
-  static _saveSent(s) {
-    // Trim to last 500 entries to keep localStorage lean
-    const arr = [...s].slice(-500);
-    try { localStorage.setItem(NE_SENT_KEY, JSON.stringify(arr)); } catch {}
-  }
-
-  static _loadPrefs() {
-    try {
-      const raw = localStorage.getItem(NE_PREFS_KEY);
-      return raw ? { ...NE_DEFAULT_PREFS, ...JSON.parse(raw) } : { ...NE_DEFAULT_PREFS };
-    } catch { return { ...NE_DEFAULT_PREFS }; }
-  }
-
-  static _savePrefs(p) {
-    try { localStorage.setItem(NE_PREFS_KEY, JSON.stringify(p)); } catch {}
-  }
-
-  static _wasPrompted() {
-    return localStorage.getItem(NE_PROMPTED_KEY) === '1';
-  }
-
-  static _markPrompted() {
-    try { localStorage.setItem(NE_PROMPTED_KEY, '1'); } catch {}
-  }
-
-  // ── Subscription helpers ──────────────────────────────────────────────────────
-
-  static _isSubscribed() {
-    if (!_osReady || typeof OneSignal === 'undefined') return false;
-    try { return OneSignal.User?.PushSubscription?.optedIn === true; } catch { return false; }
-  }
-
-  static async _subscribe() {
-    if (!_osReady) return;
-    try {
-      await OneSignal.User.PushSubscription.optIn();
-      NotificationEngine._updateBellState();
-    } catch (e) { console.warn('[Notifications] Subscribe error:', e.message); }
-  }
-
-  static async _unsubscribe() {
-    if (!_osReady) return;
-    try {
-      await OneSignal.User.PushSubscription.optOut();
-      NotificationEngine._updateBellState();
-    } catch (e) { console.warn('[Notifications] Unsubscribe error:', e.message); }
-  }
+  static _loadState()     { try { return JSON.parse(localStorage.getItem(NE_STATE_KEY) || '{}'); } catch { return {}; } }
+  static _saveState(s)    { try { localStorage.setItem(NE_STATE_KEY, JSON.stringify(s)); } catch {} }
+  static _loadSent()      { try { return new Set(JSON.parse(localStorage.getItem(NE_SENT_KEY) || '[]')); } catch { return new Set(); } }
+  static _saveSent(s)     { try { localStorage.setItem(NE_SENT_KEY, JSON.stringify([...s].slice(-500))); } catch {} }
+  static _loadPrefs()     { try { const r = localStorage.getItem(NE_PREFS_KEY); return r ? { ...NE_DEFAULT_PREFS, ...JSON.parse(r) } : { ...NE_DEFAULT_PREFS }; } catch { return { ...NE_DEFAULT_PREFS }; } }
+  static _savePrefs(p)    { try { localStorage.setItem(NE_PREFS_KEY, JSON.stringify(p)); } catch {} }
+  static _wasPrompted()   { return localStorage.getItem(NE_PROMPTED_KEY) === '1'; }
+  static _markPrompted()  { try { localStorage.setItem(NE_PROMPTED_KEY, '1'); } catch {} }
 
   // ── UI ────────────────────────────────────────────────────────────────────────
 
@@ -448,14 +411,16 @@ class NotificationEngine {
     const panel = document.getElementById('notif-panel');
     if (!bell || !panel) return;
 
-    bell.addEventListener('click', (e) => {
+    NotificationEngine._updateBellState();
+
+    bell.addEventListener('click', e => {
       e.stopPropagation();
       const open = panel.classList.toggle('is-open');
       bell.setAttribute('aria-expanded', String(open));
       if (open) NotificationEngine._renderPanel();
     });
 
-    document.addEventListener('click', (e) => {
+    document.addEventListener('click', e => {
       if (!panel.classList.contains('is-open')) return;
       if (!panel.contains(e.target) && e.target !== bell) {
         panel.classList.remove('is-open');
@@ -469,6 +434,7 @@ class NotificationEngine {
     if (!panel) return;
     const subscribed = NotificationEngine._isSubscribed();
     const prefs      = NotificationEngine._loadPrefs();
+    const supported  = 'Notification' in window;
 
     const typeRowsHtml = Object.entries(NE_TYPE_LABELS).map(([type, label]) => `
       <label class="np-pref-row">
@@ -480,26 +446,30 @@ class NotificationEngine {
         </span>
       </label>`).join('');
 
-    panel.innerHTML = `
+    panel.innerHTML = !supported ? `
+      <div class="np-header"><span class="np-title">Notifications</span></div>
+      <div class="np-body">
+        <p class="np-desc">Your browser doesn't support notifications. On iOS, add this site to your Home Screen first.</p>
+      </div>
+    ` : subscribed ? `
       <div class="np-header">
         <span class="np-title">Notifications</span>
-        <button class="np-close" id="np-close" aria-label="Close panel">✕</button>
+        <button class="np-close" id="np-close" aria-label="Close">✕</button>
       </div>
       <div class="np-body">
-        ${subscribed ? `
-          <p class="np-status np-status-on">
-            <span class="np-status-dot"></span> Push notifications <strong>on</strong>
-          </p>
-          <div class="np-prefs">${typeRowsHtml}</div>
-          <button class="np-action np-unsub" id="np-unsub">Turn off notifications</button>
-        ` : `
-          <p class="np-status np-status-off">Push notifications are <strong>off</strong></p>
-          <p class="np-desc">
-            Get notified for match results, score changes, and leaderboard shifts —
-            even when you're not on the site.
-          </p>
-          <button class="np-action np-sub" id="np-sub">Enable notifications</button>
-        `}
+        <p class="np-status np-status-on"><span class="np-status-dot"></span> Notifications <strong>on</strong></p>
+        <div class="np-prefs">${typeRowsHtml}</div>
+        <button class="np-action np-unsub" id="np-unsub">Turn off</button>
+      </div>
+    ` : `
+      <div class="np-header">
+        <span class="np-title">Notifications</span>
+        <button class="np-close" id="np-close" aria-label="Close">✕</button>
+      </div>
+      <div class="np-body">
+        <p class="np-status np-status-off">Notifications are <strong>off</strong></p>
+        <p class="np-desc">Goals, match results, standings changes — even when the tab is in the background.</p>
+        <button class="np-action np-sub" id="np-sub">Enable notifications</button>
       </div>
     `;
 
@@ -507,17 +477,15 @@ class NotificationEngine {
       panel.classList.remove('is-open');
       document.getElementById('notif-bell')?.setAttribute('aria-expanded', 'false');
     });
-
     document.getElementById('np-sub')?.addEventListener('click', async () => {
-      await NotificationEngine._subscribe();
+      const granted = await NotificationEngine._subscribe();
+      if (granted) NotificationEngine._markPrompted();
       NotificationEngine._renderPanel();
     });
-
-    document.getElementById('np-unsub')?.addEventListener('click', async () => {
-      await NotificationEngine._unsubscribe();
-      NotificationEngine._renderPanel();
+    document.getElementById('np-unsub')?.addEventListener('click', () => {
+      // Can't programmatically revoke — direct to browser settings
+      alert('To turn off notifications, use your browser or OS notification settings.');
     });
-
     panel.querySelectorAll('.np-toggle-input').forEach(cb => {
       cb.addEventListener('change', () => {
         const p = NotificationEngine._loadPrefs();
@@ -532,28 +500,21 @@ class NotificationEngine {
     if (!bell) return;
     const on = NotificationEngine._isSubscribed();
     bell.classList.toggle('notif-bell-on', on);
-    bell.setAttribute('aria-label', on ? 'Notification settings' : 'Enable push notifications');
-    bell.title = on ? 'Notification settings' : 'Enable push notifications';
+    bell.title = on ? 'Notification settings' : 'Enable notifications';
+    bell.setAttribute('aria-label', bell.title);
   }
 
   static _showOptInPrompt() {
-    if (NotificationEngine._isSubscribed() || !_osReady) {
-      NotificationEngine._markPrompted();
-      return;
-    }
-
-    if (document.getElementById('notif-optin')) return;
+    if (NotificationEngine._isSubscribed() || document.getElementById('notif-optin')) return;
 
     const el = document.createElement('div');
-    el.id        = 'notif-optin';
+    el.id = 'notif-optin';
     el.className = 'notif-optin';
-    el.setAttribute('role', 'region');
-    el.setAttribute('aria-label', 'Notification opt-in');
     el.innerHTML = `
       <span class="notif-optin-icon">🔔</span>
       <div class="notif-optin-text">
         <strong>Stay in the loop</strong>
-        <span>Match results, score updates &amp; leaderboard changes — even when you're away.</span>
+        <span>Goals, results &amp; standings — even in the background.</span>
       </div>
       <div class="notif-optin-btns">
         <button class="notif-optin-allow" id="notif-optin-allow">Allow</button>
@@ -567,7 +528,6 @@ class NotificationEngine {
       NotificationEngine._markPrompted();
       await NotificationEngine._subscribe();
     });
-
     document.getElementById('notif-optin-later')?.addEventListener('click', () => {
       el.remove();
       NotificationEngine._markPrompted();
@@ -575,10 +535,8 @@ class NotificationEngine {
   }
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
 function _ordinal(n) {
   const v = n % 100;
   if (v >= 11 && v <= 13) return 'th';
-  return ['th', 'st', 'nd', 'rd'][(n % 10)] || 'th';
+  return ['th','st','nd','rd'][(n % 10)] || 'th';
 }

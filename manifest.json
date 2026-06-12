@@ -1,0 +1,14 @@
+{
+  "name": "Tavern League WC '26",
+  "short_name": "TL WC '26",
+  "description": "Live fantasy leaderboard for the 2026 Tavern League World Cup Pool",
+  "start_url": "/tavern-league-worldcup/",
+  "scope": "/tavern-league-worldcup/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A0A0A",
+  "theme_color": "#0A0A0A",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

@@ -7,6 +7,15 @@
   <meta name="description" content="Live fantasy leaderboard for the 2026 Tavern League World Cup Shenanigans. Track scores, group standings, and knockout results in real time." />
   <meta property="og:title" content="2026 Tavern League World Cup Shenanigans" />
   <meta property="og:description" content="Live fantasy leaderboard for the 2026 Tavern League World Cup Shenanigans." />
+
+  <!-- PWA / iOS home screen -->
+  <link rel="manifest" href="/tavern-league-worldcup/manifest.json" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="TL WC '26" />
+  <link rel="apple-touch-icon" href="/tavern-league-worldcup/icon.svg" />
+  <meta name="theme-color" content="#0A0A0A" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -30,6 +39,14 @@
       <div class="header-right">
         <span class="updated-time" id="last-updated"></span>
         <span class="source-badge" id="data-source"></span>
+        <div class="notif-wrap">
+          <button class="notif-bell" id="notif-bell"
+                  aria-label="Enable notifications"
+                  aria-expanded="false"
+                  aria-controls="notif-panel">🔔</button>
+          <div class="notif-panel" id="notif-panel" role="dialog"
+               aria-label="Notification preferences"></div>
+        </div>
       </div>
     </div>
 
@@ -263,7 +280,13 @@
   <script src="leaderboard.js"></script>
   <script src="draft.js"></script>
   <script src="sidebets.js"></script>
+  <script src="notification-engine.js"></script>
   <script>
+    // Register service worker for background notifications + PWA
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/tavern-league-worldcup/sw.js').catch(() => {});
+    }
+
     document.addEventListener('DOMContentLoaded', async function () {
       initTabs();
       initCountdown();
@@ -271,6 +294,7 @@
       await draft.init();
       new ScoringEngine().init();
       new SideBetsEngine().init();
+      NotificationEngine.init();
     });
   </script>
 
