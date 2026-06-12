@@ -302,6 +302,8 @@ const NAME_MAP = {
   'South-Africa':             'South Africa',
   // South Korea (alternate hyphenated form)
   'South-Korea':              'South Korea',
+  // Curaçao — ESPN uses the ç character, our data uses plain c
+  'Curaçao':                  'Curacao',
 };
 
 /** Normalize an API-Football team name to our canonical name. */
