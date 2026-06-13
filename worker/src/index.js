@@ -1,4 +1,14 @@
-const ESPN_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard';
+const ESPN_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260611-20260719&limit=200';
+
+// ESPN status name sets — ESPN uses STATUS_FIRST_HALF / STATUS_SECOND_HALF during
+// normal play, NOT STATUS_IN_PROGRESS. All must be covered for goal/kickoff detection.
+const LIVE_STATUS_NAMES = new Set([
+  'STATUS_IN_PROGRESS', 'STATUS_FIRST_HALF', 'STATUS_SECOND_HALF',
+  'STATUS_HALFTIME', 'STATUS_OVERTIME', 'STATUS_SHOOTOUT',
+]);
+const FINAL_STATUS_NAMES = new Set([
+  'STATUS_FINAL', 'STATUS_FULL_TIME', 'STATUS_FINAL_AET', 'STATUS_FINAL_PEN',
+]);
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -327,19 +337,21 @@ async function _checkAndNotify(env) {
     const prev     = prevState[id] || {};
     const notified = { ...(prev.notified || {}) };
 
-    if (prev.status === 'STATUS_FINAL') { notified.final = true; notified.halftime = true; }
+    if (FINAL_STATUS_NAMES.has(prev.status)) { notified.final = true; notified.halftime = true; }
 
     const homeOwner = owners[homeName];
     const awayOwner = owners[awayName];
     const ownerLine = [homeOwner && `${homeOwner} (${homeName})`, awayOwner && `${awayOwner} (${awayName})`]
       .filter(Boolean).join(' vs ');
 
-    if (status === 'STATUS_IN_PROGRESS' && prev.status !== 'STATUS_IN_PROGRESS' && !notified.start) {
+    // Kickoff: any live status when the previous state wasn't live or final
+    if (LIVE_STATUS_NAMES.has(status) && !LIVE_STATUS_NAMES.has(prev.status) && !FINAL_STATUS_NAMES.has(prev.status) && !notified.start) {
       notified.start = true;
       notifications.push({ title: '⚽ Kickoff', body: ownerLine || `${homeName} vs ${awayName} has kicked off` });
     }
 
-    if ((homeOwner || awayOwner) && ['STATUS_IN_PROGRESS','STATUS_HALFTIME','STATUS_FINAL'].includes(status)) {
+    // Goals: ESPN sends STATUS_FIRST_HALF / STATUS_SECOND_HALF during play, not STATUS_IN_PROGRESS
+    if ((homeOwner || awayOwner) && (LIVE_STATUS_NAMES.has(status) || FINAL_STATUS_NAMES.has(status))) {
       for (let i = (prev.homeScore ?? 0) + 1; i <= homeScore; i++) {
         const key = `goal_home_${i}`;
         if (!notified[key]) { notified[key] = true; notifications.push({ title: `⚽ GOAL — ${homeName}${homeOwner ? ` (${homeOwner})` : ''}`, body: `${homeName} ${homeScore}–${awayScore} ${awayName}` }); }
@@ -355,7 +367,8 @@ async function _checkAndNotify(env) {
       notifications.push({ title: `⏸ Halftime — ${homeName} ${homeScore}–${awayScore} ${awayName}`, body: ownerLine });
     }
 
-    if (status === 'STATUS_FINAL' && !notified.final && (homeOwner || awayOwner)) {
+    // Final: ESPN uses STATUS_FULL_TIME (and AET/PEN variants), not just STATUS_FINAL
+    if (FINAL_STATUS_NAMES.has(status) && !notified.final && (homeOwner || awayOwner)) {
       notified.final = true;
       const result = homeScore > awayScore ? `${homeName} wins` : awayScore > homeScore ? `${awayName} wins` : 'Draw';
       notifications.push({ title: `🏁 Final — ${homeName} ${homeScore}–${awayScore} ${awayName}`, body: `${result} · ${ownerLine}` });
