@@ -388,10 +388,15 @@ class DataLayer {
     const local = this._lsRead(LS_MATCHES_KEY);
 
     if (local) {
+      const now = Date.now();
       const ttl = local.data.some(m => isLive(m.status))
         ? CONFIG.CACHE_TTL_LIVE_MS
         : CONFIG.CACHE_TTL_IDLE_MS;
-      if (!this._isStale(local.fetchedAt, ttl)) {
+      // Bypass cache if any NS match's kickoff has already passed — it may be live now
+      const hasUndetectedLive = local.data.some(
+        m => m.status === 'NS' && m.date && new Date(m.date).getTime() <= now
+      );
+      if (!this._isStale(local.fetchedAt, ttl) && !hasUndetectedLive) {
         this.source = 'local-cache';
         return local.data;
       }
@@ -945,9 +950,24 @@ class ScoringEngine {
    */
   _scheduleRefresh() {
     clearTimeout(this._refreshTimer);
+    const now     = Date.now();
     const anyLive = this._matches.some(m => isLive(m.status));
-    const ttl     = anyLive ? 60 * 1000 : CONFIG.CACHE_TTL_IDLE_MS;
-    this._nextRefreshAt = Date.now() + ttl;
+
+    let ttl;
+    if (anyLive) {
+      ttl = 60 * 1000;
+    } else {
+      // Schedule refresh at the next NS match kickoff (+ 30s buffer), capped at idle TTL
+      const nextKickoff = this._matches
+        .filter(m => m.status === 'NS' && m.date)
+        .map(m => new Date(m.date).getTime())
+        .filter(t => t > now)
+        .sort((a, b) => a - b)[0];
+      const msUntilNext = nextKickoff != null ? nextKickoff - now + 30_000 : Infinity;
+      ttl = Math.min(msUntilNext, CONFIG.CACHE_TTL_IDLE_MS);
+    }
+
+    this._nextRefreshAt = now + ttl;
     this._refreshTimer  = setTimeout(async () => {
       await this._fetchAndRender(anyLive); // force-fresh only when live
       this._scheduleRefresh();
