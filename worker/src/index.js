@@ -156,6 +156,13 @@ async function checkAndNotify(env) {
     const prev = prevState[id] || {};
     const notified = { ...(prev.notified || {}) };
 
+    // If this match was already final in the previous state, mark all events
+    // as notified so we don't send stale notifications after a Worker restart.
+    if (prev.status === 'STATUS_FINAL') {
+      notified.final = true;
+      notified.halftime = true;
+    }
+
     const homeOwner = owners[homeName];
     const awayOwner = owners[awayName];
 
