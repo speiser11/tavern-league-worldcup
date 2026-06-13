@@ -66,10 +66,11 @@ class NotificationEngine {
     if (!('serviceWorker' in navigator)) return;
     try {
       await navigator.serviceWorker.register('/tavern-league-worldcup/sw.js');
-      // If the user already granted permission but never went through the new
-      // push subscription flow, silently re-subscribe so the Worker gets them.
+      // If the user already granted permission but never registered a push sub
+      // with the Worker, silently re-register — skipping requestPermission()
+      // since we already know it's granted.
       if (Notification.permission === 'granted' && !localStorage.getItem(NE_PUSH_SUB_KEY)) {
-        NotificationEngine._subscribe().catch(() => {});
+        NotificationEngine._registerPushSub().catch(() => {});
       }
     } catch (e) {
       console.warn('[Notifications] SW registration failed:', e.message);
@@ -396,8 +397,14 @@ class NotificationEngine {
       NotificationEngine._updateBellState();
       return false;
     }
-    // Register Web Push subscription with the Worker so notifications
-    // fire even when the app is closed
+    await NotificationEngine._registerPushSub();
+    NotificationEngine._updateBellState();
+    return true;
+  }
+
+  // Register push sub with Worker — can be called without a user gesture
+  // since it doesn't call requestPermission().
+  static async _registerPushSub() {
     try {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.subscribe({
@@ -413,8 +420,6 @@ class NotificationEngine {
     } catch (e) {
       console.warn('[Notifications] Push subscription failed:', e.message);
     }
-    NotificationEngine._updateBellState();
-    return true;
   }
 
   static async _unsubscribePush() {
