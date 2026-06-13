@@ -1,0 +1,11 @@
+name = "tlwc-push"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[[kv_namespaces]]
+binding = "TLWC_STORE"
+id = "d85ec258b7214d0b886c58f84c5dfb98"
+
+[triggers]
+crons = ["* * * * *"]

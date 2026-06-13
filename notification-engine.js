@@ -16,6 +16,16 @@ const NE_PREFS_KEY    = 'wc_notif_prefs';
 const NE_SENT_KEY     = 'wc_notif_sent';
 const NE_STATE_KEY    = 'wc_notif_state';
 const NE_PROMPTED_KEY = 'wc_notif_prompted';
+const NE_PUSH_SUB_KEY = 'wc_push_sub_endpoint';
+
+const WORKER_URL      = 'https://tlwc-push.scottpeiser.workers.dev';
+const VAPID_PUBLIC_KEY = 'BCKL5S_oVqfyChrUP7WXqfSXjyWl5SbGC56pHi8hAhKXJWJ6pb9bcg0QPepNx1esovZT1lh0knKvgPASKKXXh2I';
+
+function _urlB64ToUint8(b64) {
+  const pad = '='.repeat((4 - b64.length % 4) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
 
 const NE_DEFAULT_PREFS = {
   goals:              true,
@@ -365,8 +375,50 @@ class NotificationEngine {
   static async _subscribe() {
     if (!('Notification' in window)) return false;
     const perm = await Notification.requestPermission();
+    if (perm !== 'granted') {
+      NotificationEngine._updateBellState();
+      return false;
+    }
+    // Register Web Push subscription with the Worker so notifications
+    // fire even when the app is closed
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: _urlB64ToUint8(VAPID_PUBLIC_KEY),
+      });
+      await fetch(`${WORKER_URL}/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sub),
+      });
+      localStorage.setItem(NE_PUSH_SUB_KEY, sub.endpoint);
+    } catch (e) {
+      console.warn('[Notifications] Push subscription failed:', e.message);
+    }
     NotificationEngine._updateBellState();
-    return perm === 'granted';
+    return true;
+  }
+
+  static async _unsubscribePush() {
+    try {
+      const endpoint = localStorage.getItem(NE_PUSH_SUB_KEY);
+      if (endpoint) {
+        fetch(`${WORKER_URL}/subscribe`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint }),
+        }).catch(() => {});
+        localStorage.removeItem(NE_PUSH_SUB_KEY);
+      }
+      const reg = await navigator.serviceWorker?.getRegistration?.();
+      if (reg) {
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) await sub.unsubscribe();
+      }
+    } catch (e) {
+      console.warn('[Notifications] Unsubscribe failed:', e.message);
+    }
   }
 
   // ── State ─────────────────────────────────────────────────────────────────────
@@ -514,9 +566,10 @@ class NotificationEngine {
       if (granted) NotificationEngine._markPrompted();
       NotificationEngine._renderPanel();
     });
-    document.getElementById('np-unsub')?.addEventListener('click', () => {
-      // Can't programmatically revoke — direct to browser settings
-      alert('To turn off notifications, use your browser or OS notification settings.');
+    document.getElementById('np-unsub')?.addEventListener('click', async () => {
+      await NotificationEngine._unsubscribePush();
+      alert('Unsubscribed from push notifications. To fully block them, also check your browser or OS notification settings.');
+      NotificationEngine._renderPanel();
     });
     panel.querySelectorAll('.np-toggle-input').forEach(cb => {
       cb.addEventListener('change', () => {
