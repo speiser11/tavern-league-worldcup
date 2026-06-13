@@ -96,8 +96,9 @@ async function buildOwnerMap(env) {
   try {
     const url = `${env.FIREBASE_URL}/worldcup2026/draft.json`;
     const resp = await fetch(url);
-    const picks = await resp.json();
-    if (!picks || !Array.isArray(picks)) return {};
+    const data = await resp.json();
+    // Firebase returns { picks: [...], draftOrder: [...], ... }
+    const picks = Array.isArray(data) ? data : (data?.picks ?? []);
     const map = {};
     for (const pick of picks) {
       if (pick?.team && pick?.player) map[pick.team] = pick.player;
