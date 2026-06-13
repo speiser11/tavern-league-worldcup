@@ -8,4 +8,4 @@ binding = "TLWC_STORE"
 id = "d85ec258b7214d0b886c58f84c5dfb98"
 
 [triggers]
-crons = ["* * * * *"]
+crons = ["*/2 * * * *"]

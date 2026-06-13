@@ -364,10 +364,15 @@ async function _checkAndNotify(env) {
     nextState[id] = { status, homeScore, awayScore, notified };
   }
 
-  await env.TLWC_STORE.put('state', JSON.stringify(nextState));
-  await env.TLWC_STORE.put('lastLog', JSON.stringify({ ts: new Date().toISOString(), matches: events.length, notifications }));
+  // Only write state when something actually changed (saves KV writes)
+  const nextStateStr = JSON.stringify(nextState);
+  if (nextStateStr !== stateRaw) {
+    await env.TLWC_STORE.put('state', nextStateStr);
+  }
 
   if (!notifications.length) return;
+
+  await env.TLWC_STORE.put('lastLog', JSON.stringify({ ts: new Date().toISOString(), matches: events.length, notifications }));
 
   const deadSubs = new Set();
   await Promise.all(subs.map(async sub => {
