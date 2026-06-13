@@ -66,6 +66,11 @@ class NotificationEngine {
     if (!('serviceWorker' in navigator)) return;
     try {
       await navigator.serviceWorker.register('/tavern-league-worldcup/sw.js');
+      // If the user already granted permission but never went through the new
+      // push subscription flow, silently re-subscribe so the Worker gets them.
+      if (Notification.permission === 'granted' && !localStorage.getItem(NE_PUSH_SUB_KEY)) {
+        NotificationEngine._subscribe().catch(() => {});
+      }
     } catch (e) {
       console.warn('[Notifications] SW registration failed:', e.message);
     }
@@ -171,45 +176,51 @@ class NotificationEngine {
       const prevM = prevState.matches?.[m.matchId];
       if (prevM && isFinished(prevM.status)) continue;
 
-      for (const [teamName, isHome] of [[m.homeTeam, true], [m.awayTeam, false]]) {
-        const owner = TEAM_OWNER[teamName];
-        if (!owner) continue;
+      const homeOwner = TEAM_OWNER[m.homeTeam];
+      const awayOwner = TEAM_OWNER[m.awayTeam];
+      if (!homeOwner && !awayOwner) continue;
 
-        const key = `result_${m.matchId}_${teamName}`;
-        if (sent.has(key)) continue;
+      // One notification per match regardless of how many owners are involved
+      const key = `result_${m.matchId}`;
+      if (sent.has(key)) continue;
 
-        const ts  = isHome ? m.homeScore : m.awayScore;
-        const os  = isHome ? m.awayScore : m.homeScore;
-        const opp = isHome ? m.awayTeam  : m.homeTeam;
-        const flag = TEAM_FLAGS[teamName] || '';
+      const hs = m.homeScore, as_ = m.awayScore;
+      const hf = TEAM_FLAGS[m.homeTeam] || '';
+      const af = TEAM_FLAGS[m.awayTeam] || '';
 
-        if (ts > os) {
-          const tier    = scoringFor(teamName);
-          const gkBonus = (!TIER_A.has(teamName) && TIER_A.has(opp)) ? (tier.giant_killer ?? 0) : 0;
-          const pts     = m.round === 'group'
-            ? tier.group_win + gkBonus
-            : (tier[ROUND_SCORE_KEY[m.round]] ?? 0);
-          const rank    = rankMap[owner];
-          events.push({
-            key,
-            title: `${flag} ${teamName} win ${ts}–${os}`,
-            body:  `${owner} +${pts} pts${rank ? ` · now ${rank}${_ordinal(rank)}` : ''}${gkBonus ? ' 🔪 Giant Killer!' : ''}`,
-          });
-        } else if (ts === os) {
-          const tier = scoringFor(teamName);
-          events.push({
-            key,
-            title: `${flag} ${teamName} draw ${ts}–${os}`,
-            body:  `${owner} +${tier.group_draw} pts vs ${opp}`,
-          });
-        } else {
-          events.push({
-            key,
-            title: `${flag} ${teamName} lose ${ts}–${os}`,
-            body:  `${owner} earns 0 pts vs ${opp}`,
-          });
-        }
+      const _pts = (teamName, won, drew) => {
+        const tier    = scoringFor(teamName);
+        const opp     = teamName === m.homeTeam ? m.awayTeam : m.homeTeam;
+        const gkBonus = won && !TIER_A.has(teamName) && TIER_A.has(opp) ? (tier.giant_killer ?? 0) : 0;
+        if (won)  return (m.round === 'group' ? tier.group_win : (tier[ROUND_SCORE_KEY[m.round]] ?? 0)) + gkBonus;
+        if (drew) return tier.group_draw ?? 0;
+        return 0;
+      };
+
+      const isDraw = hs === as_;
+      const homeWon = hs > as_;
+
+      // Build owner impact lines
+      const lines = [];
+      if (homeOwner) {
+        const won = homeWon, drew = isDraw;
+        const pts = _pts(m.homeTeam, won, drew);
+        const gk  = won && !TIER_A.has(m.homeTeam) && TIER_A.has(m.awayTeam);
+        lines.push(`${homeOwner} (${m.homeTeam}) ${pts > 0 ? `+${pts} pts` : '0 pts'}${gk ? ' 🔪' : ''}`);
       }
+      if (awayOwner) {
+        const won = !homeWon && !isDraw, drew = isDraw;
+        const pts = _pts(m.awayTeam, won, drew);
+        const gk  = won && !TIER_A.has(m.awayTeam) && TIER_A.has(m.homeTeam);
+        lines.push(`${awayOwner} (${m.awayTeam}) ${pts > 0 ? `+${pts} pts` : '0 pts'}${gk ? ' 🔪' : ''}`);
+      }
+
+      const result = isDraw ? 'Draw' : homeWon ? `${m.homeTeam} win` : `${m.awayTeam} win`;
+      events.push({
+        key,
+        title: `🏁 ${hf} ${m.homeTeam} ${hs}–${as_} ${m.awayTeam} ${af}`,
+        body:  `${result} · ${lines.join(' / ')}`,
+      });
     }
     return events;
   }
@@ -281,21 +292,27 @@ class NotificationEngine {
     for (const [name, newRank] of Object.entries(newState.ranks)) {
       const old = prevState.ranks[name];
       if (old == null || old === newRank) continue;
-      if (old > newRank) movers.push({ name, newRank, delta: old - newRank });
+      movers.push({ name, newRank, oldRank: old, up: old > newRank });
     }
     if (!movers.length) return [];
 
-    movers.sort((a, b) => b.delta - a.delta);
-    const top = movers[0];
-    const key = `lb_${top.name}_to_${top.newRank}_${newState.scoreHash}`;
+    const key = `lb_${newState.scoreHash}`;
     if (sent.has(key)) return [];
 
-    const icon  = top.newRank === 1 ? '🥇' : top.newRank === 2 ? '🥈' : '📊';
-    const extra = movers.length > 1 ? ` (${movers.length - 1} others moved)` : '';
+    // Sort: biggest climbers first
+    movers.sort((a, b) => (b.oldRank - b.newRank) - (a.oldRank - a.newRank));
+
+    // Build a compact summary of who moved
+    const summary = movers
+      .slice(0, 3)
+      .map(m => `${m.name} → ${m.newRank}${_ordinal(m.newRank)}`)
+      .join(', ');
+    const extra = movers.length > 3 ? ` +${movers.length - 3} more` : '';
+
     return [{
       key,
-      title: `${icon} ${top.name} moves to ${top.newRank}${_ordinal(top.newRank)}`,
-      body:  `Standings update${extra}`,
+      title: '📊 Standings change',
+      body:  summary + extra,
     }];
   }
 
