@@ -205,7 +205,7 @@ function _buildColHeader() {
     <span class="lbch-player">Player</span>
     <span class="lbch-deck">The Deck &middot; pts per team</span>
     <span class="lbch-form">Form L5</span>
-    <span class="lbch-pts">Pts</span>
+    <span class="lbch-pts">Pts · GP</span>
     <span class="lbch-delta">±</span>
   `;
   return div;
@@ -261,6 +261,7 @@ function _buildEntry(entry) {
       </div>
       <div class="lb-score-cell">
         <span class="lb-score" data-score="${entry.totalScore}">${entry.totalScore}</span>
+        <span class="lb-gp">${entry.totalGP ?? 0} GP</span>
       </div>
       <div class="lb-delta-cell">
         ${deltaHtml}

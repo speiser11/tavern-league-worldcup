@@ -3344,7 +3344,7 @@ a:hover { color: var(--red); }
   display: flex;
   gap: 3px;
   flex-wrap: nowrap;
-  overflow: hidden;
+  overflow: visible;
   min-width: 0;
   align-items: flex-start;
 }
@@ -3375,6 +3375,15 @@ a:hover { color: var(--red); }
   line-height: 1;
   color: var(--ink);
   letter-spacing: 0.02em;
+}
+
+.lb-gp {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--ink3);
+  letter-spacing: 0.05em;
+  margin-top: 3px;
 }
 
 @keyframes score-flash {

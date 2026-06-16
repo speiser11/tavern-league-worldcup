@@ -811,6 +811,7 @@ function calculateScores(matches, standings = null) {
     }
 
     const totalScore = Object.values(teamBreakdown).reduce((s, t) => s + t.total, 0);
+    const totalGP    = Object.values(teamBreakdown).reduce((s, t) => s + (t.played ?? 0), 0);
     const scoreHistory = _buildScoreHistory(teamNames, matches, advancedTeams, groupWinners);
 
     // Same-group conflict flag (currently only possible for Logan: USA + Switzerland)
@@ -822,7 +823,7 @@ function calculateScores(matches, standings = null) {
       flags.push(`same-group conflict: ${t1} and ${t2} are both in Group ${g1}`);
     }
 
-    return { name, teams: teamNames, totalScore, teamBreakdown, scoreHistory, flags, _wins: totalWins };
+    return { name, teams: teamNames, totalScore, totalGP, teamBreakdown, scoreHistory, flags, _wins: totalWins };
   });
 
   // Primary sort: totalScore desc. Tiebreak: total wins desc.
