@@ -668,12 +668,13 @@ function determineGroupWinners(matches) {
  */
 function _scoreTeam(teamName, matches, advancedTeams, groupWinners) {
   const tier = scoringFor(teamName);
-  let wins = 0, draws = 0, bonuses = 0, knockoutPts = 0, giantKillerPts = 0;
+  let wins = 0, draws = 0, bonuses = 0, knockoutPts = 0, giantKillerPts = 0, played = 0;
 
   for (const m of matches) {
     if (!isFinished(m.status)) continue;
     if (m.homeTeam !== teamName && m.awayTeam !== teamName) continue;
 
+    played++;
     const teamScore = m.homeTeam === teamName ? m.homeScore : m.awayScore;
     const oppScore  = m.homeTeam === teamName ? m.awayScore : m.homeScore;
     const oppTeam   = m.homeTeam === teamName ? m.awayTeam  : m.homeTeam;
@@ -698,7 +699,7 @@ function _scoreTeam(teamName, matches, advancedTeams, groupWinners) {
   if (groupWinners.has(teamName))  bonuses += tier.group_1st_bonus;
 
   const total = wins * tier.group_win + draws * tier.group_draw + bonuses + knockoutPts + giantKillerPts;
-  return { wins, draws, bonuses, knockoutPts, giantKillerPts, total };
+  return { wins, draws, bonuses, knockoutPts, giantKillerPts, total, played };
 }
 
 // ── Score history builder ──────────────────────────────────────────────────────

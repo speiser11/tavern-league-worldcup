@@ -294,9 +294,10 @@ function _buildDeckChips(teams, breakdown) {
   return teams.map(teamName => {
     const td      = breakdown[teamName] ?? {};
     const pts     = td.total ?? 0;
+    const played  = td.played ?? 0;
     const isTierA = typeof TIER_A !== 'undefined' && TIER_A.has(teamName);
     const code    = _teamCode(teamName);
-    const ptsText = pts > 0 ? `+${pts}` : '—';
+    const ptsText = pts > 0 ? `+${pts}` : played > 0 ? '0' : '—';
 
     return `<div class="deck-chip${isTierA ? ' dc-tier-a' : ''}" title="${escHtml(teamName)}: ${pts} pts">
       <span class="dc-flag">${flagImg(teamName, 'flag-img-sm')}</span>
