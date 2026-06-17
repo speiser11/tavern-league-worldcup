@@ -3417,7 +3417,7 @@ a:hover { color: var(--red); }
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: 3px 0 2px;
+  padding: 3px 0 4px;
   flex-shrink: 0;
   position: relative;
   cursor: default;
@@ -3469,6 +3469,7 @@ a:hover { color: var(--red); }
   font-family: 'Anton', sans-serif;
   font-size: 11px;
   letter-spacing: 0.04em;
+  line-height: 1.2;
   color: var(--ink3);
   line-height: 1;
 }
