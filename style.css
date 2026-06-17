@@ -3410,7 +3410,7 @@ a:hover { color: var(--red); }
 /* ── Deck chips ─────────────────────────────────────────────────────────── */
 .deck-chip {
   width: 38px;
-  height: 40px;
+  min-height: 44px;
   background: var(--bg-card);
   border: 1px solid var(--border-mid);
   display: flex;
