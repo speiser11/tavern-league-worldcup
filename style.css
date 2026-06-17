@@ -3445,7 +3445,8 @@ a:hover { color: var(--red); }
 .dc-flag .flag-img,
 .dc-flag .flag-img-sm {
   width: 20px !important;
-  height: auto;
+  height: 14px;
+  object-fit: contain;
 }
 
 .dc-bottom {
