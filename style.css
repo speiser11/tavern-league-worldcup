@@ -587,6 +587,7 @@ a:hover { color: var(--red); }
 
 .chip-win   { background: var(--green-dim); color: var(--green);  border: 1px solid var(--green-border); }
 .chip-draw  { background: var(--bg-card-alt); color: var(--text-2); border: 1px solid var(--border); }
+.chip-loss  { background: var(--red-dim); color: var(--red); border: 1px solid var(--red-border); }
 .chip-bonus { background: var(--yellow-dim); color: var(--yellow); border: 1px solid var(--yellow-border); }
 .chip-ko    { background: var(--blue-dim);  color: var(--blue);   border: 1px solid var(--blue-border); }
 .chip-none  { color: var(--text-3); font-size: 0.7rem; font-weight: 400; font-style: italic; }

@@ -381,6 +381,9 @@ function _buildBreakdownHTML(entry) {
       chips.push(`<span class="bd-stat-chip chip-win">${td.wins}W</span>`);
     if ((td.draws ?? 0) > 0)
       chips.push(`<span class="bd-stat-chip chip-draw">${td.draws}D</span>`);
+    const losses = (td.played ?? 0) - (td.wins ?? 0) - (td.draws ?? 0);
+    if (losses > 0)
+      chips.push(`<span class="bd-stat-chip chip-loss">${losses}L</span>`);
     if ((td.bonuses ?? 0) > 0)
       chips.push(`<span class="bd-stat-chip chip-bonus">+${td.bonuses} bonus</span>`);
     if ((td.knockoutPts ?? 0) > 0)
