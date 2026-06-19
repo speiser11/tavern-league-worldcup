@@ -89,8 +89,8 @@ const SCORING = {
   tierA: {
     group_win:       2,
     group_draw:      1,
-    group_1st_bonus: 1,   // finishing 1st in group (group complete)
-    group_advance:   2,   // advancing from group stage
+    group_1st_bonus: 1,   // finishing/clinching 1st in group
+    group_advance:   2,   // advancing from group stage (all groups must complete)
     round_of_32:     4,
     round_of_16:     6,
     quarterfinal:    9,
@@ -100,8 +100,8 @@ const SCORING = {
   tierB: {
     group_win:       4,
     group_draw:      2,
-    group_1st_bonus: 3,   // finishing 1st in group (group complete)
-    group_advance:   3,   // advancing from group stage
+    group_1st_bonus: 3,   // finishing/clinching 1st in group
+    group_advance:   3,   // advancing from group stage (all groups must complete)
     round_of_32:     6,
     round_of_16:     9,
     quarterfinal:    12,
@@ -636,21 +636,20 @@ function _advancedFromMatches(matches) {
     }
   }
 
-  // Also check completed groups — top 2 from each complete group advance
+  // Group-based advancement only awarded when ALL 12 groups are complete
   const standings = computeGroupStandings(matches);
-  const thirdPlace = [];
   let completedGroups = 0;
-
   for (const rows of Object.values(standings)) {
-    if (!rows.length || rows[0].played < 3) continue;
-    completedGroups++;
-    if (rows[0]) advanced.add(rows[0].team);
-    if (rows[1]) advanced.add(rows[1].team);
-    if (rows[2]) thirdPlace.push(rows[2]);
+    if (rows.length && rows[0].played >= 3) completedGroups++;
   }
 
-  // Best 8 third-place teams advance (only deterministic when all 12 groups done)
   if (completedGroups === 12) {
+    const thirdPlace = [];
+    for (const rows of Object.values(standings)) {
+      if (rows[0]) advanced.add(rows[0].team);
+      if (rows[1]) advanced.add(rows[1].team);
+      if (rows[2]) thirdPlace.push(rows[2]);
+    }
     thirdPlace.sort((a, b) => {
       if (b.pts !== a.pts) return b.pts - a.pts;
       if (b.gd  !== a.gd)  return b.gd  - a.gd;
@@ -665,17 +664,34 @@ function _advancedFromMatches(matches) {
 }
 
 /**
- * Returns a Set of teams that finished 1st in their group.
- * Only populated once the group is complete (all 3 games played per team).
+ * Returns a Set of teams that have won (or mathematically clinched 1st in)
+ * their group. A team clinches when their current pts are strictly greater
+ * than every rival's maximum possible pts (current + 3 × remaining games).
+ * Ties are NOT counted as clinched because tiebreakers are unpredictable.
  */
 function determineGroupWinners(matches) {
   const standings = computeGroupStandings(matches);
   const winners   = new Set();
   for (const rows of Object.values(standings)) {
-    // rows[0].played === 3 means the group is fully complete
-    if (rows.length && rows[0].played >= 3) {
+    if (!rows.length) continue;
+
+    // Group complete — 1st place is the winner
+    if (rows[0].played >= 3) {
       winners.add(rows[0].team);
+      continue;
     }
+
+    // Check if 1st place has mathematically clinched
+    const leader = rows[0];
+    let clinched = leader.played > 0;
+    for (let i = 1; i < rows.length; i++) {
+      const rivalMaxPts = rows[i].pts + 3 * (3 - rows[i].played);
+      if (rivalMaxPts >= leader.pts) {
+        clinched = false;
+        break;
+      }
+    }
+    if (clinched) winners.add(leader.team);
   }
   return winners;
 }
@@ -756,19 +772,13 @@ function _buildScoreHistory(teamNames, matches, advancedTeams, groupWinners) {
       const drew = teamScore === oppScore;
       const tier = scoringFor(teamName);
 
-      // Both group bonuses fire on the team's first knockout appearance
+      // Advance bonus — only fires on first knockout appearance (held until all groups done)
       if (m.round !== 'group') {
         if (!advanceBonusAwarded.has(teamName) && advancedTeams.has(teamName)) {
           advanceBonusAwarded.add(teamName);
           running += tier.group_advance;
           events.push({ date: m.date, matchId: null, team: teamName,
             event: 'group_advance', pts: tier.group_advance, runningTotal: running });
-        }
-        if (!firstBonusAwarded.has(teamName) && groupWinners.has(teamName)) {
-          firstBonusAwarded.add(teamName);
-          running += tier.group_1st_bonus;
-          events.push({ date: m.date, matchId: null, team: teamName,
-            event: 'group_1st', pts: tier.group_1st_bonus, runningTotal: running });
         }
       }
 
@@ -798,6 +808,14 @@ function _buildScoreHistory(teamNames, matches, advancedTeams, groupWinners) {
         running += tier.giant_killer;
         events.push({ date: m.date, matchId: m.matchId, team: teamName,
           event: 'giant_killer', pts: tier.giant_killer, runningTotal: running });
+      }
+
+      // Group 1st bonus — award as soon as team clinches (can happen during group play)
+      if (!firstBonusAwarded.has(teamName) && groupWinners.has(teamName)) {
+        firstBonusAwarded.add(teamName);
+        running += tier.group_1st_bonus;
+        events.push({ date: m.date, matchId: null, team: teamName,
+          event: 'group_1st', pts: tier.group_1st_bonus, runningTotal: running });
       }
     }
   }
