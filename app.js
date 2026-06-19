@@ -753,11 +753,13 @@ function _scoreTeam(teamName, matches, advancedTeams, groupWinners) {
     }
   }
 
-  if (advancedTeams.has(teamName)) bonuses += tier.group_advance;
-  if (groupWinners.has(teamName))  bonuses += tier.group_1st_bonus;
+  let advanceBonus = 0, firstBonus = 0;
+  if (advancedTeams.has(teamName)) advanceBonus = tier.group_advance;
+  if (groupWinners.has(teamName))  firstBonus   = tier.group_1st_bonus;
+  bonuses = advanceBonus + firstBonus;
 
   const total = wins * tier.group_win + draws * tier.group_draw + bonuses + knockoutPts + giantKillerPts;
-  return { wins, draws, bonuses, knockoutPts, giantKillerPts, total, played };
+  return { wins, draws, bonuses, advanceBonus, firstBonus, knockoutPts, giantKillerPts, total, played };
 }
 
 // ── Score history builder ──────────────────────────────────────────────────────
