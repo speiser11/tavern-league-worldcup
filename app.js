@@ -665,28 +665,32 @@ function _advancedFromMatches(matches) {
 
 /**
  * Returns a Set of teams that have won (or mathematically clinched 1st in)
- * their group. A team clinches when their current pts are strictly greater
- * than every rival's maximum possible pts (current + 3 × remaining games).
- * Ties are NOT counted as clinched because tiebreakers are unpredictable.
+ * their group. A team clinches when no rival can finish above them:
+ *   - rival's max pts < leader's current pts (can't catch up), OR
+ *   - rival's max pts == leader's pts AND leader beat them head-to-head
  */
 function determineGroupWinners(matches) {
   const standings = computeGroupStandings(matches);
+  const h2h      = _buildH2HResults(matches);
   const winners   = new Set();
   for (const rows of Object.values(standings)) {
     if (!rows.length) continue;
 
-    // Group complete — 1st place is the winner
     if (rows[0].played >= 3) {
       winners.add(rows[0].team);
       continue;
     }
 
-    // Check if 1st place has mathematically clinched
     const leader = rows[0];
     let clinched = leader.played > 0;
     for (let i = 1; i < rows.length; i++) {
-      const rivalMaxPts = rows[i].pts + 3 * (3 - rows[i].played);
-      if (rivalMaxPts >= leader.pts) {
+      const rival = rows[i];
+      const rivalMaxPts = rival.pts + 3 * (3 - rival.played);
+      if (rivalMaxPts > leader.pts) {
+        clinched = false;
+        break;
+      }
+      if (rivalMaxPts === leader.pts && !h2h.get(`${leader.team}>${rival.team}`)) {
         clinched = false;
         break;
       }
@@ -694,6 +698,17 @@ function determineGroupWinners(matches) {
     if (clinched) winners.add(leader.team);
   }
   return winners;
+}
+
+/** Builds a Map of head-to-head wins: key "A>B" = true means A beat B. */
+function _buildH2HResults(matches) {
+  const results = new Map();
+  for (const m of matches) {
+    if (m.round !== 'group' || !isFinished(m.status)) continue;
+    if (m.homeScore > m.awayScore) results.set(`${m.homeTeam}>${m.awayTeam}`, true);
+    else if (m.awayScore > m.homeScore) results.set(`${m.awayTeam}>${m.homeTeam}`, true);
+  }
+  return results;
 }
 
 // ── Per-team scorer ────────────────────────────────────────────────────────────
