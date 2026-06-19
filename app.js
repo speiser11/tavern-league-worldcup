@@ -628,9 +628,9 @@ function _advancedFromStandings(standings) {
 function _advancedFromMatches(matches) {
   const advanced = new Set();
 
-  // Teams in knockout fixtures have advanced
+  // Teams in completed knockout fixtures have advanced
   for (const m of matches) {
-    if (m.round !== 'group') {
+    if (m.round !== 'group' && isFinished(m.status)) {
       advanced.add(m.homeTeam);
       advanced.add(m.awayTeam);
     }
@@ -1593,22 +1593,13 @@ function buildActivityFeed(matches) {
       const drew = teamScore === oppScore;
       const tier = scoringFor(teamName);
 
-      // Both group bonuses fire on the team's first knockout appearance
+      // Advance bonus — first knockout appearance (held until all groups done)
       if (m.round !== 'group') {
         if (!advanceBonusEmitted.has(teamName) && advancedTeams.has(teamName)) {
           advanceBonusEmitted.add(teamName);
           feed.push({
             date: m.date, owner, team: teamName,
             event: 'group_advance', pts: tier.group_advance,
-            homeTeam: m.homeTeam, awayTeam: m.awayTeam,
-            homeScore: m.homeScore, awayScore: m.awayScore, matchId: null,
-          });
-        }
-        if (!firstBonusEmitted.has(teamName) && groupWinners.has(teamName)) {
-          firstBonusEmitted.add(teamName);
-          feed.push({
-            date: m.date, owner, team: teamName,
-            event: 'group_1st', pts: tier.group_1st_bonus,
             homeTeam: m.homeTeam, awayTeam: m.awayTeam,
             homeScore: m.homeScore, awayScore: m.awayScore, matchId: null,
           });
@@ -1644,6 +1635,17 @@ function buildActivityFeed(matches) {
           date: m.date, owner, team: teamName, event: 'giant_killer', pts: tier.giant_killer,
           homeTeam: m.homeTeam, awayTeam: m.awayTeam,
           homeScore: m.homeScore, awayScore: m.awayScore, matchId: m.matchId,
+        });
+      }
+
+      // Group 1st bonus — award as soon as team clinches
+      if (!firstBonusEmitted.has(teamName) && groupWinners.has(teamName)) {
+        firstBonusEmitted.add(teamName);
+        feed.push({
+          date: m.date, owner, team: teamName,
+          event: 'group_1st', pts: tier.group_1st_bonus,
+          homeTeam: m.homeTeam, awayTeam: m.awayTeam,
+          homeScore: m.homeScore, awayScore: m.awayScore, matchId: null,
         });
       }
     }
