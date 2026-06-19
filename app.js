@@ -626,14 +626,41 @@ function _advancedFromStandings(standings) {
 }
 
 function _advancedFromMatches(matches) {
-  // Any team that appears in a knockout fixture advanced from groups
   const advanced = new Set();
+
+  // Teams in knockout fixtures have advanced
   for (const m of matches) {
     if (m.round !== 'group') {
       advanced.add(m.homeTeam);
       advanced.add(m.awayTeam);
     }
   }
+
+  // Also check completed groups — top 2 from each complete group advance
+  const standings = computeGroupStandings(matches);
+  const thirdPlace = [];
+  let completedGroups = 0;
+
+  for (const rows of Object.values(standings)) {
+    if (!rows.length || rows[0].played < 3) continue;
+    completedGroups++;
+    if (rows[0]) advanced.add(rows[0].team);
+    if (rows[1]) advanced.add(rows[1].team);
+    if (rows[2]) thirdPlace.push(rows[2]);
+  }
+
+  // Best 8 third-place teams advance (only deterministic when all 12 groups done)
+  if (completedGroups === 12) {
+    thirdPlace.sort((a, b) => {
+      if (b.pts !== a.pts) return b.pts - a.pts;
+      if (b.gd  !== a.gd)  return b.gd  - a.gd;
+      return b.gf - a.gf;
+    });
+    for (const t of thirdPlace.slice(0, 8)) {
+      advanced.add(t.team);
+    }
+  }
+
   return advanced;
 }
 
