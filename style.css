@@ -8,27 +8,6 @@
 [hidden] { display: none !important; }
 
 /* Zach banner */
-.zach-banner {
-  background: repeating-linear-gradient(45deg, #fbbf24, #fbbf24 10px, #1a1a1a 10px, #1a1a1a 20px);
-  color: #fff;
-  text-align: center;
-  padding: 10px 40px 10px 16px;
-  font-family: 'Courier New', monospace;
-  font-weight: 700;
-  font-size: 0.85rem;
-  letter-spacing: 0.04em;
-  position: relative;
-  cursor: pointer;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
-}
-.zach-dismiss {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 1rem;
-  opacity: 0.7;
-}
 
 /* ── Design tokens ────────────────────────────────────────────────────────── */
 :root {
