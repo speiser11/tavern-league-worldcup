@@ -3437,6 +3437,14 @@ a:hover { color: var(--red); }
   border-top: 3px solid var(--ink);
 }
 
+/* Eliminated team — grayed out */
+.deck-chip.dc-eliminated {
+  opacity: 0.35;
+}
+.deck-chip.dc-eliminated:hover {
+  opacity: 0.6;
+}
+
 .dc-flag {
   font-size: 14px;
   line-height: 1;
@@ -3548,6 +3556,10 @@ a:hover { color: var(--red); }
 
 .bd-team {
   border-radius: 0;
+}
+
+.bd-team.bd-eliminated {
+  opacity: 0.4;
 }
 
 .bd-tier-label {

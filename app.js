@@ -711,6 +711,30 @@ function _buildH2HResults(matches) {
   return results;
 }
 
+/** Returns a Set of teams that have been eliminated from the tournament. */
+function _computeEliminatedTeams(matches, advancedTeams) {
+  const eliminated = new Set();
+  const groupStandings = computeGroupStandings(matches);
+
+  // Group stage: teams whose group is complete and who didn't advance
+  for (const rows of Object.values(groupStandings)) {
+    if (!rows.length || rows[0].played < 3) continue;
+    for (const row of rows) {
+      if (!advancedTeams.has(row.team)) eliminated.add(row.team);
+    }
+  }
+
+  // Knockout: teams that lost a finished knockout match
+  for (const m of matches) {
+    if (m.round === 'group' || !isFinished(m.status)) continue;
+    if (m.homeScore === null || m.awayScore === null) continue;
+    if (m.homeScore > m.awayScore) eliminated.add(m.awayTeam);
+    else if (m.awayScore > m.homeScore) eliminated.add(m.homeTeam);
+  }
+
+  return eliminated;
+}
+
 // ── Per-team scorer ────────────────────────────────────────────────────────────
 
 /**
@@ -861,6 +885,7 @@ function _buildScoreHistory(teamNames, matches, advancedTeams, groupWinners) {
 function calculateScores(matches, standings = null) {
   const advancedTeams = determineAdvancedTeams(matches, standings);
   const groupWinners  = determineGroupWinners(matches);
+  const eliminated    = _computeEliminatedTeams(matches, advancedTeams);
 
   const results = Object.entries(PARTICIPANTS).map(([name, teamNames]) => {
     const teamBreakdown = {};
@@ -868,6 +893,7 @@ function calculateScores(matches, standings = null) {
 
     for (const teamName of teamNames) {
       const td = _scoreTeam(teamName, matches, advancedTeams, groupWinners);
+      td.eliminated = eliminated.has(teamName);
       teamBreakdown[teamName] = td;
       totalWins += td.wins;
     }

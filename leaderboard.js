@@ -296,11 +296,13 @@ function _buildDeckChips(teams, breakdown) {
     const td      = breakdown[teamName] ?? {};
     const pts     = td.total ?? 0;
     const played  = td.played ?? 0;
+    const elim    = td.eliminated;
     const isTierA = typeof TIER_A !== 'undefined' && TIER_A.has(teamName);
     const code    = _teamCode(teamName);
     const ptsText = pts > 0 ? `+${pts}` : played > 0 ? '0' : '—';
+    const cls     = ['deck-chip', isTierA && 'dc-tier-a', elim && 'dc-eliminated'].filter(Boolean).join(' ');
 
-    return `<div class="deck-chip${isTierA ? ' dc-tier-a' : ''}" title="${escHtml(teamName)}: ${pts} pts">
+    return `<div class="${cls}" title="${escHtml(teamName)}: ${pts} pts${elim ? ' (eliminated)' : ''}">
       <span class="dc-flag">${flagImg(teamName, 'flag-img-sm')}</span>
       <div class="dc-bottom">
         <span class="dc-code">${code}</span>
@@ -437,7 +439,7 @@ function _buildBreakdownHTML(entry) {
     }
 
     return `
-      <div class="bd-team">
+      <div class="bd-team${td.eliminated ? ' bd-eliminated' : ''}">
         <div class="bd-top">
           <span class="bd-flag">${flag}</span>
           <div class="bd-team-info">
