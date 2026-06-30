@@ -334,6 +334,25 @@ const LIVE_STATUSES     = new Set(['1H', '2H', 'HT', 'ET', 'BT', 'P', 'LIVE', 'S
 function isFinished(status) { return FINISHED_STATUSES.has(status); }
 function isLive(status)     { return LIVE_STATUSES.has(status); }
 
+/**
+ * Returns 'home', 'away', or null (draw) for a finished match.
+ * Accounts for penalty shootouts, where homeScore === awayScore
+ * but m.shootoutWinner records the actual winner.
+ */
+function matchWinnerSide(m) {
+  if (m.shootoutWinner) return m.shootoutWinner;
+  if (m.homeScore > m.awayScore) return 'home';
+  if (m.awayScore > m.homeScore) return 'away';
+  return null;
+}
+
+/** Returns {won, drew} for `teamName` in match `m`. Accounts for penalty shootouts. */
+function teamMatchResult(m, teamName) {
+  const side   = m.homeTeam === teamName ? 'home' : 'away';
+  const winner = matchWinnerSide(m);
+  return { won: winner === side, drew: winner === null };
+}
+
 // ── ESPN status → internal status ─────────────────────────────────────────────
 
 function mapEspnStatus(espnName, state) {
@@ -484,12 +503,21 @@ class DataLayer {
       }
       goals.sort((a, b) => a.clockSec - b.clockSec);
 
+      // Penalty shootouts leave homeScore === awayScore (regulation/ET score).
+      // ESPN flags the actual winner via competitor.winner — use it to break the tie.
+      let shootoutWinner = null;
+      if (status === 'PEN') {
+        if (home.winner === true) shootoutWinner = 'home';
+        else if (away.winner === true) shootoutWinner = 'away';
+      }
+
       parsed.push({
         matchId:    parseInt(e.id),
         homeTeam,
         awayTeam,
         homeScore:  isPre ? null : parseInt(home.score),
         awayScore:  isPre ? null : parseInt(away.score),
+        shootoutWinner, // 'home' | 'away' | null
         status,
         statusLong: st.description || st.name,
         elapsed,
@@ -728,8 +756,9 @@ function _computeEliminatedTeams(matches, advancedTeams) {
   for (const m of matches) {
     if (m.round === 'group' || !isFinished(m.status)) continue;
     if (m.homeScore === null || m.awayScore === null) continue;
-    if (m.homeScore > m.awayScore) eliminated.add(m.awayTeam);
-    else if (m.awayScore > m.homeScore) eliminated.add(m.homeTeam);
+    const winner = matchWinnerSide(m);
+    if (winner === 'home') eliminated.add(m.awayTeam);
+    else if (winner === 'away') eliminated.add(m.homeTeam);
   }
 
   return eliminated;
@@ -757,11 +786,8 @@ function _scoreTeam(teamName, matches, advancedTeams, groupWinners) {
     if (m.homeTeam !== teamName && m.awayTeam !== teamName) continue;
 
     played++;
-    const teamScore = m.homeTeam === teamName ? m.homeScore : m.awayScore;
-    const oppScore  = m.homeTeam === teamName ? m.awayScore : m.homeScore;
-    const oppTeam   = m.homeTeam === teamName ? m.awayTeam  : m.homeTeam;
-    const won  = teamScore > oppScore;
-    const drew = teamScore === oppScore;
+    const oppTeam = m.homeTeam === teamName ? m.awayTeam : m.homeTeam;
+    const { won, drew } = teamMatchResult(m, teamName);
 
     if (m.round === 'group') {
       if (won)       wins++;
@@ -807,10 +833,7 @@ function _buildScoreHistory(teamNames, matches, advancedTeams, groupWinners) {
     for (const teamName of teamNames) {
       if (m.homeTeam !== teamName && m.awayTeam !== teamName) continue;
 
-      const teamScore = m.homeTeam === teamName ? m.homeScore : m.awayScore;
-      const oppScore  = m.homeTeam === teamName ? m.awayScore : m.homeScore;
-      const won  = teamScore > oppScore;
-      const drew = teamScore === oppScore;
+      const { won, drew } = teamMatchResult(m, teamName);
       const tier = scoringFor(teamName);
 
       // Advance bonus — only fires on first knockout appearance (held until all groups done)
@@ -1428,8 +1451,7 @@ function _potentialMatchPts(match, teamName) {
 
   if (teamScore === null || oppScore === null) return 0;
 
-  const winning = teamScore > oppScore;
-  const drawing = teamScore === oppScore;
+  const { won: winning, drew: drawing } = teamMatchResult(match, teamName);
   const tier    = scoringFor(teamName);
 
   const oppTeam = match.homeTeam === teamName ? match.awayTeam : match.homeTeam;
@@ -1477,9 +1499,10 @@ function _buildLiveBannerCard(m) {
     const teamScore = isHome ? m.homeScore : m.awayScore;
     const oppScore  = isHome ? m.awayScore : m.homeScore;
     const pts       = _potentialMatchPts(m, teamName);
-    const situation = teamScore > oppScore ? 'winning'
-                    : teamScore < oppScore ? 'losing'
-                    : 'drawing';
+    const { won: teamWon, drew: teamDrew } = teamMatchResult(m, teamName);
+    const situation = teamWon ? 'winning'
+                    : teamDrew ? 'drawing'
+                    : 'losing';
 
     ownerEntries.push({ owner, teamName, pts, situation, color: OWNER_COLORS[owner] || '#8090b8' });
   }
@@ -1614,11 +1637,7 @@ function buildActivityFeed(matches) {
       const owner = TEAM_OWNER[teamName];
       if (!owner) continue;
 
-      const isHome    = m.homeTeam === teamName;
-      const teamScore = isHome ? m.homeScore : m.awayScore;
-      const oppScore  = isHome ? m.awayScore : m.homeScore;
-      const won  = teamScore > oppScore;
-      const drew = teamScore === oppScore;
+      const { won, drew } = teamMatchResult(m, teamName);
       const tier = scoringFor(teamName);
 
       // Advance bonus — first knockout appearance (held until all groups done)
