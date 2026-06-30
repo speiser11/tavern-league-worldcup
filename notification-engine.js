@@ -198,8 +198,7 @@ class NotificationEngine {
         return 0;
       };
 
-      const isDraw = hs === as_;
-      const homeWon = hs > as_;
+      const { won: homeWon, drew: isDraw } = teamMatchResult(m, m.homeTeam);
 
       // Build owner impact lines
       const lines = [];
@@ -216,10 +215,11 @@ class NotificationEngine {
         lines.push(`${awayOwner} (${m.awayTeam}) ${pts > 0 ? `+${pts} pts` : '0 pts'}${gk ? ' 🔪' : ''}`);
       }
 
+      const pensTag = m.status === 'PEN' ? ' (pens)' : '';
       const result = isDraw ? 'Draw' : homeWon ? `${m.homeTeam} win` : `${m.awayTeam} win`;
       events.push({
         key,
-        title: `🏁 ${hf} ${m.homeTeam} ${hs}–${as_} ${m.awayTeam} ${af}`,
+        title: `🏁 ${hf} ${m.homeTeam} ${hs}–${as_}${pensTag} ${m.awayTeam} ${af}`,
         body:  `${result} · ${lines.join(' / ')}`,
       });
     }
@@ -259,12 +259,11 @@ class NotificationEngine {
       const prevM = prevState.matches?.[m.matchId];
       if (prevM && isFinished(prevM.status)) continue;
 
-      for (const [teamName, isHome] of [[m.homeTeam, true], [m.awayTeam, false]]) {
+      for (const teamName of [m.homeTeam, m.awayTeam]) {
         const owner = TEAM_OWNER[teamName];
         if (!owner) continue;
-        const ts = isHome ? m.homeScore : m.awayScore;
-        const os = isHome ? m.awayScore : m.homeScore;
-        if (ts >= os) continue;
+        const { won, drew } = teamMatchResult(m, teamName);
+        if (won || drew) continue;
 
         const key = `elim_ko_${m.matchId}_${teamName}`;
         if (sent.has(key)) continue;
@@ -487,11 +486,10 @@ class NotificationEngine {
     }
     for (const m of matches) {
       if (m.round === 'group' || !isFinished(m.status) || m.homeScore === null) continue;
-      for (const [teamName, isHome] of [[m.homeTeam, true], [m.awayTeam, false]]) {
+      for (const teamName of [m.homeTeam, m.awayTeam]) {
         if (!TEAM_OWNER[teamName]) continue;
-        const ts = isHome ? m.homeScore : m.awayScore;
-        const os = isHome ? m.awayScore : m.homeScore;
-        if (ts < os) sent.add(`elim_ko_${m.matchId}_${teamName}`);
+        const { won, drew } = teamMatchResult(m, teamName);
+        if (!won && !drew) sent.add(`elim_ko_${m.matchId}_${teamName}`);
       }
     }
   }

@@ -338,10 +338,8 @@ function _buildPlayerForm(entry, matches) {
                    : null;
     if (!teamName) continue;
 
-    const isHome = m.homeTeam === teamName;
-    const ts = isHome ? m.homeScore : m.awayScore;
-    const os = isHome ? m.awayScore : m.homeScore;
-    const result = ts > os ? 'W' : ts < os ? 'L' : 'D';
+    const { won, drew } = teamMatchResult(m, teamName);
+    const result = won ? 'W' : drew ? 'D' : 'L';
     played.push({ date: new Date(m.date), result });
   }
 

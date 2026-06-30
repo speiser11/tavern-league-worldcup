@@ -885,6 +885,16 @@ a:hover { color: var(--red); }
   border: 1px solid var(--red-border);
 }
 
+.sched-pens-tag {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-3);
+  margin-left: 0.3em;
+  vertical-align: middle;
+}
+
 .sched-live-dot {
   font-size: 0.5rem;
   animation: breathe 1.2s ease-in-out infinite;
@@ -4231,6 +4241,13 @@ a:hover { color: var(--red); }
 
 #panel-schedule .sched-score.is-live  { color: var(--card-red); }
 #panel-schedule .sched-score.is-final { color: var(--ink); }
+
+#panel-schedule .sched-pens-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  color: var(--ink3);
+}
 
 #panel-schedule .sched-vs {
   font-family: var(--font-mono);

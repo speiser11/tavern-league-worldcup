@@ -1370,7 +1370,8 @@ function _buildMatchRow(m) {
 
   let centerHtml;
   if (finished) {
-    centerHtml = `<span class="sched-score is-final">${m.homeScore}–${m.awayScore}</span>`;
+    const pensTag = m.status === 'PEN' ? `<span class="sched-pens-tag">PK</span>` : '';
+    centerHtml = `<span class="sched-score is-final">${m.homeScore}–${m.awayScore}${pensTag}</span>`;
   } else if (live) {
     const elapsed = m.elapsed != null ? `${m.elapsed}'` : 'LIVE';
     centerHtml = `<span class="sched-score is-live">${m.homeScore ?? 0}–${m.awayScore ?? 0}<span class="sched-live-dot"> ●</span></span>`;
@@ -1387,16 +1388,15 @@ function _buildMatchRow(m) {
 
   function _matchPts(teamName, isHome) {
     if (!finished || m.homeScore === null) return null;
-    const ts  = isHome ? m.homeScore : m.awayScore;
-    const os  = isHome ? m.awayScore : m.homeScore;
     const opp = isHome ? m.awayTeam  : m.homeTeam;
     const tier = scoringFor(teamName);
-    if (ts > os) {
+    const { won, drew } = teamMatchResult(m, teamName);
+    if (won) {
       const gk = (!TIER_A.has(teamName) && TIER_A.has(opp)) ? (tier.giant_killer ?? 0) : 0;
       const base = m.round === 'group' ? tier.group_win : (tier[ROUND_SCORE_KEY[m.round]] ?? 0);
       return base + gk;
     }
-    if (ts === os) return tier.group_draw ?? 0;
+    if (drew && m.round === 'group') return tier.group_draw ?? 0;
     return 0;
   }
 
@@ -1781,27 +1781,29 @@ function _ownerSpan(owner) {
 /** One FINAL entry per finished match, with pts for both owners. */
 function _wireFinalText(m) {
   const bits = [];
-  for (const [team, opp, ts, os] of [
-    [m.homeTeam, m.awayTeam, m.homeScore, m.awayScore],
-    [m.awayTeam, m.homeTeam, m.awayScore, m.homeScore],
+  for (const [team, opp] of [
+    [m.homeTeam, m.awayTeam],
+    [m.awayTeam, m.homeTeam],
   ]) {
     const owner = TEAM_OWNER[team];
     if (!owner) continue;
     const tier = scoringFor(team);
+    const { won, drew } = teamMatchResult(m, team);
     let pts = 0;
     if (m.round === 'group') {
-      if (ts > os) {
+      if (won) {
         pts = tier.group_win;
         if (tier.giant_killer && TIER_A.has(opp)) pts += tier.giant_killer;
-      } else if (ts === os) pts = tier.group_draw;
-    } else if (ts > os) {
+      } else if (drew) pts = tier.group_draw;
+    } else if (won) {
       pts = tier[ROUND_SCORE_KEY[m.round]] ?? 0;
     }
     bits.push(pts > 0
       ? `${_ownerSpan(owner)} +${pts} pts`
       : (owner ? `${_ownerSpan(owner)} 0 pts` : ''));
   }
-  return `FT — ${escHtml(m.homeTeam)} ${m.homeScore}–${m.awayScore} ${escHtml(m.awayTeam)}.` +
+  const pensTag = m.status === 'PEN' ? ' (pens)' : '';
+  return `FT — ${escHtml(m.homeTeam)} ${m.homeScore}–${m.awayScore}${pensTag} ${escHtml(m.awayTeam)}.` +
          (bits.length ? ` ${bits.join(' · ')}.` : '');
 }
 
