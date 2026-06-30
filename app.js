@@ -383,7 +383,7 @@ function mapEspnStatus(espnName, state) {
 
 // ── Data layer ─────────────────────────────────────────────────────────────────
 
-const LS_MATCHES_KEY = 'wc_espn_v3'; // v3: cached parses now include per-goal details
+const LS_MATCHES_KEY = 'wc_espn_v4'; // v4: cached parses now include shootoutWinner for PK matches
 
 // All 104 WC matches fall between these dates
 const ESPN_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260611-20260719&limit=200';
