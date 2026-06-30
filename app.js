@@ -1392,7 +1392,7 @@ function _buildMatchRow(m) {
     const tier = scoringFor(teamName);
     const { won, drew } = teamMatchResult(m, teamName);
     if (won) {
-      const gk = (!TIER_A.has(teamName) && TIER_A.has(opp)) ? (tier.giant_killer ?? 0) : 0;
+      const gk = (m.round === 'group' && !TIER_A.has(teamName) && TIER_A.has(opp)) ? (tier.giant_killer ?? 0) : 0;
       const base = m.round === 'group' ? tier.group_win : (tier[ROUND_SCORE_KEY[m.round]] ?? 0);
       return base + gk;
     }

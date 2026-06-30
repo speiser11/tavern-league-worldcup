@@ -192,7 +192,7 @@ class NotificationEngine {
       const _pts = (teamName, won, drew) => {
         const tier    = scoringFor(teamName);
         const opp     = teamName === m.homeTeam ? m.awayTeam : m.homeTeam;
-        const gkBonus = won && !TIER_A.has(teamName) && TIER_A.has(opp) ? (tier.giant_killer ?? 0) : 0;
+        const gkBonus = m.round === 'group' && won && !TIER_A.has(teamName) && TIER_A.has(opp) ? (tier.giant_killer ?? 0) : 0;
         if (won)  return (m.round === 'group' ? tier.group_win : (tier[ROUND_SCORE_KEY[m.round]] ?? 0)) + gkBonus;
         if (drew) return tier.group_draw ?? 0;
         return 0;
@@ -205,13 +205,13 @@ class NotificationEngine {
       if (homeOwner) {
         const won = homeWon, drew = isDraw;
         const pts = _pts(m.homeTeam, won, drew);
-        const gk  = won && !TIER_A.has(m.homeTeam) && TIER_A.has(m.awayTeam);
+        const gk  = m.round === 'group' && won && !TIER_A.has(m.homeTeam) && TIER_A.has(m.awayTeam);
         lines.push(`${homeOwner} (${m.homeTeam}) ${pts > 0 ? `+${pts} pts` : '0 pts'}${gk ? ' 🔪' : ''}`);
       }
       if (awayOwner) {
         const won = !homeWon && !isDraw, drew = isDraw;
         const pts = _pts(m.awayTeam, won, drew);
-        const gk  = won && !TIER_A.has(m.awayTeam) && TIER_A.has(m.homeTeam);
+        const gk  = m.round === 'group' && won && !TIER_A.has(m.awayTeam) && TIER_A.has(m.homeTeam);
         lines.push(`${awayOwner} (${m.awayTeam}) ${pts > 0 ? `+${pts} pts` : '0 pts'}${gk ? ' 🔪' : ''}`);
       }
 
