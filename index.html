@@ -72,6 +72,10 @@
               role="tab" aria-selected="false" aria-controls="panel-schedule">
         Schedule
       </button>
+      <button class="tab-btn" data-tab="bracket"
+              role="tab" aria-selected="false" aria-controls="panel-bracket">
+        Bracket
+      </button>
       <button class="tab-btn" data-tab="groups"
               role="tab" aria-selected="false" aria-controls="panel-groups">
         Groups
@@ -166,6 +170,21 @@
         </div>
         <div id="schedule-container">
           <p class="state-msg">Loading schedule…</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel hidden" id="panel-bracket" role="tabpanel">
+      <div class="va4-page-inner">
+        <div class="va4-page-head">
+          <div>
+            <div class="va4-sup">Knockout stage · 32 teams, one survivor</div>
+            <div class="va4-heading">THE BRACKET</div>
+          </div>
+          <div class="va4-legend">Scroll sideways to follow the road to the final →</div>
+        </div>
+        <div id="bracket-container">
+          <p class="state-msg">Loading bracket…</p>
         </div>
       </div>
     </div>

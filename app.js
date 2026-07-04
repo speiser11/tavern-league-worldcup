@@ -1046,6 +1046,7 @@ class ScoringEngine {
     };
     this._renderLiveBanner();
     this._renderSchedule();
+    this._renderBracket();
     this._renderGroups();
     this._renderFeed();
     this._renderLeaderboard();
@@ -1115,6 +1116,27 @@ class ScoringEngine {
     badge.textContent = labels[this._data.source] ?? this._data.source;
     badge.className   = `source-badge ${this._data.source === 'live' ? 'live' : 'cached'}`;
     ts.textContent    = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  _renderBracket() {
+    const container = document.getElementById('bracket-container');
+    if (!container) return;
+
+    if (!this._matches.length) {
+      container.innerHTML = '<p class="state-msg">No bracket data yet.</p>';
+      return;
+    }
+
+    _renderBracketInto(container, this._matches);
+    _bracketAutoScroll();
+
+    // Panel is display:none until its tab is opened, so offsets are 0 at render
+    // time — re-run the auto-scroll when the user first opens the tab.
+    const tabBtn = document.querySelector('.tab-btn[data-tab="bracket"]');
+    if (tabBtn && !tabBtn._bktScrollBound) {
+      tabBtn._bktScrollBound = true;
+      tabBtn.addEventListener('click', () => requestAnimationFrame(_bracketAutoScroll));
+    }
   }
 
   _renderSchedule() {
@@ -1427,6 +1449,198 @@ function _buildMatchRow(m) {
     <span class="sched-status">${statusLabel}</span>
   `;
   return row;
+}
+
+// ── Knockout bracket ───────────────────────────────────────────────────────────
+
+const BRACKET_ROUNDS = [
+  { key: 'round_of_32',  label: 'Round of 32' },
+  { key: 'round_of_16',  label: 'Round of 16' },
+  { key: 'quarterfinal', label: 'Quarterfinals' },
+  { key: 'semifinal',    label: 'Semifinals' },
+  { key: 'final',        label: 'Final' },
+];
+
+/** True for ESPN placeholder entries like "Quarterfinal 1 Winner". */
+function _isBracketTbd(name) {
+  return /winner|loser/i.test(name) || name.startsWith('Group');
+}
+
+/** "Round of 16 1 Winner" → "Winner of R16 · 1" */
+function _bracketTbdLabel(name) {
+  const short = name
+    .replace(/Round of 32/i, 'R32')
+    .replace(/Round of 16/i, 'R16')
+    .replace(/Quarterfinal/i, 'QF')
+    .replace(/Semifinal/i, 'SF');
+  const m = short.match(/^(\w+) (\d+) (Winner|Loser)$/);
+  return m ? `${m[3]} of ${m[1]} · ${m[2]}` : short;
+}
+
+// ESPN placeholder names number feeder matches in date order within their round.
+const _BRACKET_FEEDER_RE = {
+  round_of_32:  /round of 32 (\d+)/i,
+  round_of_16:  /round of 16 (\d+)/i,
+  quarterfinal: /quarterfinal (\d+)/i,
+  semifinal:    /semifinal (\d+)/i,
+};
+
+/**
+ * Arrange knockout matches into bracket order: for match i of round r, its two
+ * feeder matches sit at positions 2i and 2i+1 of round r-1. Lineage comes from
+ * real team names once feeders finish, or from ESPN's placeholder text
+ * ("Round of 16 3 Winner" = 3rd R16 match in date order) before that.
+ */
+function _buildBracketModel(matches) {
+  const byRound = {};
+  for (const { key } of BRACKET_ROUNDS) {
+    byRound[key] = matches
+      .filter(m => m.round === key)
+      .slice()
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+  }
+  const thirdPlace = matches.find(m => m.round === '3rd-place-match') || null;
+
+  const ordered = { final: byRound.final };
+  for (let r = BRACKET_ROUNDS.length - 1; r > 0; r--) {
+    const prevKey  = BRACKET_ROUNDS[r - 1].key;
+    const prevList = byRound[prevKey];
+    const re       = _BRACKET_FEEDER_RE[prevKey];
+    const used     = new Set();
+    const slots    = [];
+
+    for (const m of ordered[BRACKET_ROUNDS[r].key] || []) {
+      for (const teamName of [m.homeTeam, m.awayTeam]) {
+        // Real team → the previous-round match it played in
+        let idx = prevList.findIndex(pm => pm.homeTeam === teamName || pm.awayTeam === teamName);
+        // Placeholder → feeder index from ESPN's numbering
+        if (idx === -1 && re) {
+          const num = teamName.match(re)?.[1];
+          if (num) idx = parseInt(num) - 1;
+        }
+        if (idx >= 0 && idx < prevList.length && !used.has(idx)) {
+          used.add(idx);
+          slots.push(prevList[idx]);
+        } else {
+          slots.push(null);
+        }
+      }
+    }
+
+    // Unlinked matches fill empty slots in date order
+    const leftovers = prevList.filter((_, i) => !used.has(i));
+    for (let i = 0; i < slots.length; i++) {
+      if (slots[i] === null && leftovers.length) slots[i] = leftovers.shift();
+    }
+    ordered[prevKey] = slots.filter(Boolean).concat(leftovers);
+  }
+
+  return { ordered, thirdPlace };
+}
+
+function _bracketRowHtml(m, side) {
+  const teamName = side === 'home' ? m.homeTeam : m.awayTeam;
+  const score    = side === 'home' ? m.homeScore : m.awayScore;
+  const finished = isFinished(m.status);
+
+  if (_isBracketTbd(teamName)) {
+    return `<div class="bkt-row bkt-tbd">
+      <span class="bkt-flag bkt-flag-tbd"></span>
+      <span class="bkt-name">${escHtml(_bracketTbdLabel(teamName))}</span>
+    </div>`;
+  }
+
+  const winner   = finished ? matchWinnerSide(m) : null;
+  const resClass = !finished ? '' : winner === side ? ' bkt-won' : winner === null ? '' : ' bkt-lost';
+  const owner    = TEAM_OWNER[teamName];
+  const ownerHtml = owner
+    ? `<span class="bkt-owner" style="color:${OWNER_COLORS[owner] || '#8090b8'}">${escHtml(owner)}</span>`
+    : '';
+  const pkTag    = finished && m.shootoutWinner === side ? '<span class="bkt-pk">PK</span>' : '';
+  const scoreHtml = score !== null && score !== undefined && !Number.isNaN(score)
+    ? `<span class="bkt-score">${score}${pkTag}</span>`
+    : '';
+
+  return `<div class="bkt-row${resClass}">
+    <span class="bkt-flag">${flagImg(teamName)}</span>
+    <span class="bkt-name">${escHtml(teamName)}</span>
+    ${ownerHtml}${scoreHtml}
+  </div>`;
+}
+
+function _bracketCardHtml(m, extraClass = '') {
+  if (!m) return `<div class="bkt-match bkt-empty${extraClass}"><div class="bkt-row bkt-tbd"><span class="bkt-name">TBD</span></div></div>`;
+
+  const live     = isLive(m.status);
+  const finished = isFinished(m.status);
+
+  let statusHtml;
+  if (live) {
+    statusHtml = `<span class="bkt-live-dot"></span>${m.elapsed != null ? `${m.elapsed}′` : 'LIVE'}`;
+  } else if (finished) {
+    statusHtml = m.status === 'PEN' ? 'FT · PENS' : m.status === 'AET' ? 'FT · AET' : 'FT';
+  } else {
+    const d = new Date(m.date);
+    statusHtml = `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} · ${d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+  }
+
+  return `<div class="bkt-match${live ? ' is-live' : ''}${finished ? ' is-done' : ''}${extraClass}">
+    <div class="bkt-status">${statusHtml}</div>
+    ${_bracketRowHtml(m, 'home')}
+    ${_bracketRowHtml(m, 'away')}
+  </div>`;
+}
+
+function _renderBracketInto(container, matches) {
+  const { ordered, thirdPlace } = _buildBracketModel(matches);
+
+  if (!(ordered.round_of_32 || []).length) {
+    container.innerHTML = '<p class="state-msg">Bracket appears once the knockout stage is set.</p>';
+    return;
+  }
+
+  const colsHtml = BRACKET_ROUNDS.map(({ key, label }) => {
+    const list = ordered[key] || [];
+    let bodyHtml;
+
+    if (key === 'final') {
+      const final = list[0] || null;
+      const winner = final && isFinished(final.status) ? matchWinnerSide(final) : null;
+      const champTeam = winner ? (winner === 'home' ? final.homeTeam : final.awayTeam) : null;
+      const champHtml = champTeam
+        ? `<div class="bkt-champ">🏆 ${flagImg(champTeam)} ${escHtml(champTeam)}${TEAM_OWNER[champTeam] ? ` · <span style="color:${OWNER_COLORS[TEAM_OWNER[champTeam]] || '#8090b8'}">${escHtml(TEAM_OWNER[champTeam])}</span>` : ''}</div>`
+        : '';
+      const thirdHtml = thirdPlace
+        ? `<div class="bkt-third"><div class="bkt-third-label">Third place</div>${_bracketCardHtml(thirdPlace)}</div>`
+        : '';
+      bodyHtml = `<div class="bkt-pair bkt-solo">${_bracketCardHtml(list[0])}${champHtml}</div>${thirdHtml}`;
+    } else {
+      const pairs = [];
+      for (let i = 0; i < list.length; i += 2) {
+        pairs.push(`<div class="bkt-pair">${_bracketCardHtml(list[i])}${_bracketCardHtml(list[i + 1])}</div>`);
+      }
+      bodyHtml = pairs.join('');
+    }
+
+    return `<div class="bkt-col" data-round="${key}">
+      <div class="bkt-col-head">${escHtml(label)}</div>
+      <div class="bkt-col-body">${bodyHtml}</div>
+    </div>`;
+  }).join('');
+
+  container.innerHTML = `<div class="bkt-scroll"><div class="bkt-grid">${colsHtml}</div></div>`;
+}
+
+/** Scroll the bracket so the current round (first with an unfinished match) is in view. */
+function _bracketAutoScroll() {
+  const scroll = document.querySelector('#bracket-container .bkt-scroll');
+  if (!scroll) return;
+  const activeCol = [...scroll.querySelectorAll('.bkt-col')].find(col =>
+    [...col.querySelectorAll('.bkt-match')].some(el => !el.classList.contains('is-done') && !el.classList.contains('bkt-empty'))
+  );
+  if (activeCol && activeCol.offsetLeft > 40) {
+    scroll.scrollLeft = activeCol.offsetLeft - 24;
+  }
 }
 
 // ── Live match banner ──────────────────────────────────────────────────────────
