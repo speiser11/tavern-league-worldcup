@@ -1538,6 +1538,35 @@ function _buildBracketModel(matches) {
   return { ordered, thirdPlace };
 }
 
+// Stylized World Cup trophy — inline SVG so it needs no network fetch
+const BRACKET_TROPHY_SVG = `
+<svg class="bkt-trophy-svg" viewBox="0 0 100 150" aria-hidden="true">
+  <defs>
+    <linearGradient id="bktGold" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0"   stop-color="#A87B0B"/>
+      <stop offset="0.5" stop-color="#F2C94C"/>
+      <stop offset="1"   stop-color="#A87B0B"/>
+    </linearGradient>
+    <radialGradient id="bktGlobe" cx="0.35" cy="0.3" r="1">
+      <stop offset="0" stop-color="#F8DC7A"/>
+      <stop offset="1" stop-color="#B8860B"/>
+    </radialGradient>
+  </defs>
+  <!-- globe -->
+  <circle cx="50" cy="27" r="17" fill="url(#bktGlobe)" stroke="#8A6508" stroke-width="1.5"/>
+  <ellipse cx="50" cy="27" rx="17" ry="6.5" fill="none" stroke="#8A6508" stroke-width="0.9" opacity="0.55"/>
+  <ellipse cx="50" cy="27" rx="7" ry="17" fill="none" stroke="#8A6508" stroke-width="0.9" opacity="0.55"/>
+  <!-- body: figures reaching up to hold the globe, tapering to the waist -->
+  <path d="M31 40 C25 58 38 64 41 78 C43.5 89 41 98 38 104 L62 104 C59 98 56.5 89 59 78 C62 64 75 58 69 40 C63 47 57 49 50 49 C43 49 37 47 31 40 Z"
+        fill="url(#bktGold)" stroke="#8A6508" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- collar + base -->
+  <rect x="30" y="104" width="40" height="8"  rx="2" fill="url(#bktGold)" stroke="#8A6508" stroke-width="1.2"/>
+  <rect x="25" y="112" width="50" height="26" rx="4" fill="url(#bktGold)" stroke="#8A6508" stroke-width="1.5"/>
+  <!-- malachite bands -->
+  <rect x="25.8" y="117" width="48.4" height="4.5" fill="#0E6B4F" opacity="0.9"/>
+  <rect x="25.8" y="128" width="48.4" height="4.5" fill="#0E6B4F" opacity="0.9"/>
+</svg>`;
+
 function _bracketRowHtml(m, side) {
   const teamName = side === 'home' ? m.homeTeam : m.awayTeam;
   const score    = side === 'home' ? m.homeScore : m.awayScore;
@@ -1613,7 +1642,8 @@ function _renderBracketInto(container, matches) {
       const thirdHtml = thirdPlace
         ? `<div class="bkt-third"><div class="bkt-third-label">Third place</div>${_bracketCardHtml(thirdPlace)}</div>`
         : '';
-      bodyHtml = `<div class="bkt-pair bkt-solo">${_bracketCardHtml(list[0])}${champHtml}</div>${thirdHtml}`;
+      const trophyHtml = `<div class="bkt-trophy">${BRACKET_TROPHY_SVG}${champHtml ? '' : '<div class="bkt-trophy-cap">Awaits the winner</div>'}</div>`;
+      bodyHtml = `<div class="bkt-pair bkt-solo">${_bracketCardHtml(list[0])}${trophyHtml}${champHtml}</div>${thirdHtml}`;
     } else {
       const pairs = [];
       for (let i = 0; i < list.length; i += 2) {
