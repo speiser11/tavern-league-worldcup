@@ -5800,13 +5800,4 @@ a:hover { color: var(--red); }
   filter: drop-shadow(0 3px 5px rgba(138, 101, 8, 0.28));
 }
 
-#panel-bracket .bkt-trophy-cap {
-  font-family: var(--font-mono);
-  font-size: 8.5px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink3);
-}
-
 #panel-bracket .bkt-pair.bkt-solo { justify-content: center; }

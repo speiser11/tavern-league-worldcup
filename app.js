@@ -1642,7 +1642,7 @@ function _renderBracketInto(container, matches) {
       const thirdHtml = thirdPlace
         ? `<div class="bkt-third"><div class="bkt-third-label">Third place</div>${_bracketCardHtml(thirdPlace)}</div>`
         : '';
-      const trophyHtml = `<div class="bkt-trophy">${BRACKET_TROPHY_SVG}${champHtml ? '' : '<div class="bkt-trophy-cap">Awaits the winner</div>'}</div>`;
+      const trophyHtml = `<div class="bkt-trophy">${BRACKET_TROPHY_SVG}</div>`;
       bodyHtml = `<div class="bkt-pair bkt-solo">${_bracketCardHtml(list[0])}${trophyHtml}${champHtml}</div>${thirdHtml}`;
     } else {
       const pairs = [];
