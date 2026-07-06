@@ -812,6 +812,41 @@ function _scoreTeam(teamName, matches, advancedTeams, groupWinners) {
   return { wins, draws, bonuses, advanceBonus, firstBonus, knockoutPts, giantKillerPts, total, played };
 }
 
+/**
+ * Max additional points a team could still earn: every remaining group
+ * match won (plus giant-killer upside), group bonuses not yet locked in,
+ * and every knockout round from here through champion. Zero once eliminated.
+ */
+function _potentialRemainingPts(teamName, matches, advancedTeams, groupWinners, eliminated, td) {
+  if (eliminated.has(teamName)) return 0;
+  const tier = scoringFor(teamName);
+  let potential = 0;
+
+  for (const m of matches) {
+    if (m.round !== 'group' || isFinished(m.status)) continue;
+    if (m.homeTeam !== teamName && m.awayTeam !== teamName) continue;
+    const oppTeam = m.homeTeam === teamName ? m.awayTeam : m.homeTeam;
+    potential += tier.group_win;
+    if (tier.giant_killer && TIER_A.has(oppTeam)) potential += tier.giant_killer;
+  }
+
+  if (!advancedTeams.has(teamName)) potential += tier.group_advance;
+
+  // Group 1st bonus: only still "possible" while the team's own group has
+  // matches left to play. Once every match in the group is final, whoever
+  // didn't win it never will — no ceiling credit for an impossible outcome.
+  const g = findTeamGroup(teamName);
+  const groupSettled = !g || matches.every(
+    m => m.round !== 'group' || findTeamGroup(m.homeTeam) !== g || isFinished(m.status)
+  );
+  if (!groupWinners.has(teamName) && !groupSettled) potential += tier.group_1st_bonus;
+
+  const fullKnockout = tier.round_of_32 + tier.round_of_16 + tier.quarterfinal + tier.semifinal + tier.champion;
+  potential += Math.max(0, fullKnockout - (td.knockoutPts ?? 0));
+
+  return potential;
+}
+
 // ── Score history builder ──────────────────────────────────────────────────────
 
 /**
@@ -900,9 +935,11 @@ function _buildScoreHistory(teamNames, matches, advancedTeams, groupWinners) {
  *   name:          string,
  *   teams:         string[],
  *   totalScore:    number,
- *   teamBreakdown: { [teamName]: { wins, draws, bonuses, knockoutPts, total } },
+ *   teamBreakdown: { [teamName]: { wins, draws, bonuses, knockoutPts, total, potential } },
  *   scoreHistory:  { date, matchId, team, event, pts, runningTotal }[],
  *   flags:         string[],
+ *   ptsLeft:       number, — max additional points still achievable (0 once both teams are out)
+ *   maxPossible:   number, — totalScore + ptsLeft
  * }>} Sorted by totalScore desc; tiebreak: total wins desc. Tied entries share a rank.
  */
 function calculateScores(matches, standings = null) {
@@ -917,12 +954,14 @@ function calculateScores(matches, standings = null) {
     for (const teamName of teamNames) {
       const td = _scoreTeam(teamName, matches, advancedTeams, groupWinners);
       td.eliminated = eliminated.has(teamName);
+      td.potential  = _potentialRemainingPts(teamName, matches, advancedTeams, groupWinners, eliminated, td);
       teamBreakdown[teamName] = td;
       totalWins += td.wins;
     }
 
     const totalScore = Object.values(teamBreakdown).reduce((s, t) => s + t.total, 0);
     const totalGP    = Object.values(teamBreakdown).reduce((s, t) => s + (t.played ?? 0), 0);
+    const ptsLeft    = Object.values(teamBreakdown).reduce((s, t) => s + (t.potential ?? 0), 0);
     const scoreHistory = _buildScoreHistory(teamNames, matches, advancedTeams, groupWinners);
 
     // Same-group conflict flag (currently only possible for Logan: USA + Switzerland)
@@ -934,7 +973,10 @@ function calculateScores(matches, standings = null) {
       flags.push(`same-group conflict: ${t1} and ${t2} are both in Group ${g1}`);
     }
 
-    return { name, teams: teamNames, totalScore, totalGP, teamBreakdown, scoreHistory, flags, _wins: totalWins };
+    return {
+      name, teams: teamNames, totalScore, totalGP, teamBreakdown, scoreHistory, flags,
+      ptsLeft, maxPossible: totalScore + ptsLeft, _wins: totalWins,
+    };
   });
 
   // Primary sort: totalScore desc. Tiebreak: total wins desc.

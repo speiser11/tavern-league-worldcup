@@ -205,7 +205,7 @@ function _buildColHeader() {
     <span class="lbch-player">Player</span>
     <span class="lbch-deck">The Deck &middot; pts per team</span>
     <span class="lbch-form">Form L5</span>
-    <span class="lbch-pts">Pts · GP</span>
+    <span class="lbch-pts">Pts · GP · Poss</span>
     <span class="lbch-delta">±</span>
   `;
   return div;
@@ -262,6 +262,7 @@ function _buildEntry(entry) {
       <div class="lb-score-cell">
         <span class="lb-score" data-score="${entry.totalScore}">${entry.totalScore}</span>
         <span class="lb-gp">${entry.totalGP ?? 0} GP</span>
+        ${_ptsLeftHtml(entry.ptsLeft)}
       </div>
       <div class="lb-delta-cell">
         ${deltaHtml}
@@ -299,10 +300,12 @@ function _buildDeckChips(teams, breakdown) {
     const elim    = td.eliminated;
     const isTierA = typeof TIER_A !== 'undefined' && TIER_A.has(teamName);
     const code    = _teamCode(teamName);
-    const ptsText = pts > 0 ? `+${pts}` : played > 0 ? '0' : '—';
-    const cls     = ['deck-chip', isTierA && 'dc-tier-a', elim && 'dc-eliminated'].filter(Boolean).join(' ');
+    const ptsText   = pts > 0 ? `+${pts}` : played > 0 ? '0' : '—';
+    const potential = td.potential ?? 0;
+    const cls       = ['deck-chip', isTierA && 'dc-tier-a', elim && 'dc-eliminated'].filter(Boolean).join(' ');
+    const titleText = `${teamName}: ${pts} pts` + (elim ? ' (eliminated)' : potential > 0 ? ` (+${potential} possible)` : '');
 
-    return `<div class="${cls}" title="${escHtml(teamName)}: ${pts} pts${elim ? ' (eliminated)' : ''}">
+    return `<div class="${cls}" title="${escHtml(titleText)}">
       <span class="dc-flag">${flagImg(teamName, 'flag-img-sm')}</span>
       <div class="dc-bottom">
         <span class="dc-code">${code}</span>
@@ -311,6 +314,14 @@ function _buildDeckChips(teams, breakdown) {
       ${isTierA ? '<span class="dc-tier-badge">A</span>' : ''}
     </div>`;
   }).join('');
+}
+
+// ── Points still possible ───────────────────────────────────────────────────────
+
+function _ptsLeftHtml(ptsLeft) {
+  if (ptsLeft == null) return '';
+  if (ptsLeft <= 0) return `<span class="lb-pts-left lb-pts-left-zero">final</span>`;
+  return `<span class="lb-pts-left" title="Max points still possible if both teams win out from here">+${ptsLeft} poss.</span>`;
 }
 
 // ── Form dots ──────────────────────────────────────────────────────────────────
@@ -352,7 +363,7 @@ function _buildPlayerForm(entry, matches) {
 function _buildLegend() {
   const div = document.createElement('div');
   div.className = 'lb-legend';
-  div.textContent = '▲ = Tier A team  ·  Deck chip = that team\'s pts contribution  ·  Form = last 5 results across all 6 teams';
+  div.textContent = '▲ = Tier A team  ·  Deck chip = that team\'s pts contribution  ·  Form = last 5 results across all 6 teams  ·  Poss = max points still possible if every remaining team wins out';
   return div;
 }
 
@@ -396,6 +407,8 @@ function _buildBreakdownHTML(entry) {
       chips.push(`<span class="bd-stat-chip chip-bonus">+${td.giantKillerPts} Giant Killer</span>`);
     if (!chips.length)
       chips.push(`<span class="bd-stat-chip chip-none">No matches yet</span>`);
+    if (!td.eliminated && (td.potential ?? 0) > 0)
+      chips.push(`<span class="bd-stat-chip chip-potential" title="Max points still possible if this team wins out">+${td.potential} possible</span>`);
 
     // Upcoming + live matches
     const liveAndUpcoming = _currentMatches

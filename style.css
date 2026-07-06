@@ -5801,3 +5801,27 @@ a:hover { color: var(--red); }
 }
 
 #panel-bracket .bkt-pair.bkt-solo { justify-content: center; }
+
+/* ── Points still possible ──────────────────────────────────────────────── */
+.lb-pts-left {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--pitch);
+  margin-top: 2px;
+}
+
+.lb-pts-left.lb-pts-left-zero {
+  color: var(--ink3);
+  font-style: italic;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.chip-potential {
+  background: var(--bet-dim);
+  color: var(--bet);
+  border: 1px dashed var(--bet);
+}
