@@ -205,7 +205,7 @@ function _buildColHeader() {
     <span class="lbch-player">Player</span>
     <span class="lbch-deck">The Deck &middot; pts per team</span>
     <span class="lbch-form">Form L5</span>
-    <span class="lbch-pts">Pts · GP · Poss</span>
+    <span class="lbch-pts">Pts · GP · Max</span>
     <span class="lbch-delta">±</span>
   `;
   return div;
@@ -262,7 +262,7 @@ function _buildEntry(entry) {
       <div class="lb-score-cell">
         <span class="lb-score" data-score="${entry.totalScore}">${entry.totalScore}</span>
         <span class="lb-gp">${entry.totalGP ?? 0} GP</span>
-        ${_ptsLeftHtml(entry.ptsLeft)}
+        ${_maxPtsHtml(entry.maxPossible, entry.totalScore)}
       </div>
       <div class="lb-delta-cell">
         ${deltaHtml}
@@ -302,8 +302,9 @@ function _buildDeckChips(teams, breakdown) {
     const code    = _teamCode(teamName);
     const ptsText   = pts > 0 ? `+${pts}` : played > 0 ? '0' : '—';
     const potential = td.potential ?? 0;
+    const maxPts    = pts + potential;
     const cls       = ['deck-chip', isTierA && 'dc-tier-a', elim && 'dc-eliminated'].filter(Boolean).join(' ');
-    const titleText = `${teamName}: ${pts} pts` + (elim ? ' (eliminated)' : potential > 0 ? ` (+${potential} possible)` : '');
+    const titleText = `${teamName}: ${pts} pts` + (elim ? ' (eliminated)' : potential > 0 ? ` (max ${maxPts})` : '');
 
     return `<div class="${cls}" title="${escHtml(titleText)}">
       <span class="dc-flag">${flagImg(teamName, 'flag-img-sm')}</span>
@@ -316,12 +317,12 @@ function _buildDeckChips(teams, breakdown) {
   }).join('');
 }
 
-// ── Points still possible ───────────────────────────────────────────────────────
+// ── Max possible score ───────────────────────────────────────────────────────
 
-function _ptsLeftHtml(ptsLeft) {
-  if (ptsLeft == null) return '';
-  if (ptsLeft <= 0) return `<span class="lb-pts-left lb-pts-left-zero">final</span>`;
-  return `<span class="lb-pts-left" title="Max points still possible if both teams win out from here">+${ptsLeft} poss.</span>`;
+function _maxPtsHtml(maxPossible, totalScore) {
+  if (maxPossible == null) return '';
+  if (maxPossible <= (totalScore ?? 0)) return `<span class="lb-pts-left lb-pts-left-zero">final</span>`;
+  return `<span class="lb-pts-left" title="Highest score this player could still finish with if both teams win out from here">Max ${maxPossible}</span>`;
 }
 
 // ── Form dots ──────────────────────────────────────────────────────────────────
@@ -363,7 +364,7 @@ function _buildPlayerForm(entry, matches) {
 function _buildLegend() {
   const div = document.createElement('div');
   div.className = 'lb-legend';
-  div.textContent = '▲ = Tier A team  ·  Deck chip = that team\'s pts contribution  ·  Form = last 5 results across all 6 teams  ·  Poss = max points still possible if every remaining team wins out';
+  div.textContent = '▲ = Tier A team  ·  Deck chip = that team\'s pts contribution  ·  Form = last 5 results across all 6 teams  ·  Max = highest score still possible if every remaining team wins out';
   return div;
 }
 
@@ -408,7 +409,7 @@ function _buildBreakdownHTML(entry) {
     if (!chips.length)
       chips.push(`<span class="bd-stat-chip chip-none">No matches yet</span>`);
     if (!td.eliminated && (td.potential ?? 0) > 0)
-      chips.push(`<span class="bd-stat-chip chip-potential" title="Max points still possible if this team wins out">+${td.potential} possible</span>`);
+      chips.push(`<span class="bd-stat-chip chip-potential" title="Highest score this team could still finish with">Max ${(td.total ?? 0) + td.potential}</span>`);
 
     // Upcoming + live matches
     const liveAndUpcoming = _currentMatches
