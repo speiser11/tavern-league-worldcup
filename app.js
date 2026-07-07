@@ -813,11 +813,10 @@ function _scoreTeam(teamName, matches, advancedTeams, groupWinners) {
 }
 
 /**
- * Max additional points a team could still earn: every remaining group
- * match won (plus giant-killer upside), group bonuses not yet locked in,
- * and every knockout round from here through champion. Zero once eliminated.
+ * Max additional points from remaining group matches (plus giant-killer
+ * upside) and group bonuses not yet locked in. Zero once eliminated.
  */
-function _potentialRemainingPts(teamName, matches, advancedTeams, groupWinners, eliminated, td) {
+function _groupPotentialPts(teamName, matches, advancedTeams, groupWinners, eliminated) {
   if (eliminated.has(teamName)) return 0;
   const tier = scoringFor(teamName);
   let potential = 0;
@@ -841,10 +840,103 @@ function _potentialRemainingPts(teamName, matches, advancedTeams, groupWinners, 
   );
   if (!groupWinners.has(teamName) && !groupSettled) potential += tier.group_1st_bonus;
 
-  const fullKnockout = tier.round_of_32 + tier.round_of_16 + tier.quarterfinal + tier.semifinal + tier.champion;
-  potential += Math.max(0, fullKnockout - (td.knockoutPts ?? 0));
-
   return potential;
+}
+
+/** Max additional knockout points a team could earn: every round from here through champion. */
+function _knockoutPotentialPts(teamName, eliminated, td) {
+  if (eliminated.has(teamName)) return 0;
+  const tier = scoringFor(teamName);
+  const fullKnockout = tier.round_of_32 + tier.round_of_16 + tier.quarterfinal + tier.semifinal + tier.champion;
+  return Math.max(0, fullKnockout - (td.knockoutPts ?? 0));
+}
+
+/**
+ * Max additional points a team could still earn on its own: remaining group
+ * matches, group bonuses not yet locked in, and every knockout round from
+ * here through champion. Zero once eliminated. This is each team's individual
+ * ceiling — see _pairKnockoutCeiling() for the bracket-aware combined figure
+ * used when a participant's two teams could both still be alive.
+ */
+function _potentialRemainingPts(teamName, matches, advancedTeams, groupWinners, eliminated, td) {
+  return _groupPotentialPts(teamName, matches, advancedTeams, groupWinners, eliminated)
+       + _knockoutPotentialPts(teamName, eliminated, td);
+}
+
+// ── Bracket-aware combined ceiling ─────────────────────────────────────────────
+// Two teams on the same roster can't both win the whole thing — and if
+// they're drawn into the same bracket half, one will eliminate the other
+// before the final. These helpers find the actual round two teams would
+// collide in (fixed by the Round of 32 draw) and cap the combined knockout
+// ceiling accordingly, instead of just adding two independent "wins it all" figures.
+
+/** Bracket leaf index (0-31) for a team, from the fixed Round of 32 draw order. Null if not found. */
+function _bracketLeafIndex(teamName, r32Ordered) {
+  if (!r32Ordered || r32Ordered.length !== 16) return null;
+  const idx = r32Ordered.findIndex(m => m && (m.homeTeam === teamName || m.awayTeam === teamName));
+  if (idx === -1) return null;
+  return idx * 2 + (r32Ordered[idx].homeTeam === teamName ? 0 : 1);
+}
+
+/** Earliest round two bracket leaves would face each other, assuming both keep winning. */
+function _collisionRound(leafA, leafB) {
+  const rounds = ['round_of_32', 'round_of_16', 'quarterfinal', 'semifinal', 'final'];
+  for (let d = 1; d <= 5; d++) {
+    if ((leafA >> d) === (leafB >> d)) return rounds[d - 1];
+  }
+  return 'final';
+}
+
+/** Rounds a team has already actually won (real results, not tier-value inference). */
+function _wonRounds(teamName, matches) {
+  const won = new Set();
+  for (const m of matches) {
+    if (m.round === 'group' || !isFinished(m.status)) continue;
+    if (m.homeTeam !== teamName && m.awayTeam !== teamName) continue;
+    if (teamMatchResult(m, teamName).won) won.add(m.round);
+  }
+  return won;
+}
+
+/**
+ * Combined knockout ceiling for two teams on the same roster, capped so the
+ * "champion" bonus (and any round at/after where their bracket paths must
+ * collide) is only credited once — to whichever team's tier value is higher
+ * for those rounds — instead of counting both teams winning it all.
+ * Falls back to the naive independent sum if the bracket draw isn't fully known yet.
+ */
+function _pairKnockoutCeiling(teamA, teamB, matches, eliminated, tdA, tdB) {
+  const potA = _knockoutPotentialPts(teamA, eliminated, tdA);
+  const potB = _knockoutPotentialPts(teamB, eliminated, tdB);
+  if (potA === 0 || potB === 0) return potA + potB; // one side is out — no collision possible
+
+  const model     = _buildBracketModel(matches);
+  const leafA     = _bracketLeafIndex(teamA, model.ordered.round_of_32);
+  const leafB     = _bracketLeafIndex(teamB, model.ordered.round_of_32);
+  if (leafA === null || leafB === null) return potA + potB; // draw not fully known yet
+
+  const ROUND_ORDER   = ['round_of_32', 'round_of_16', 'quarterfinal', 'semifinal', 'final'];
+  const collisionRound = _collisionRound(leafA, leafB);
+  const collisionIdx   = ROUND_ORDER.indexOf(collisionRound);
+  const roundsBefore    = ROUND_ORDER.slice(0, collisionIdx);
+  const roundsFromCollision = ROUND_ORDER.slice(collisionIdx);
+
+  const wonA = _wonRounds(teamA, matches);
+  const wonB = _wonRounds(teamB, matches);
+  const tierA = scoringFor(teamA);
+  const tierB = scoringFor(teamB);
+
+  const sumRounds = (rounds, won, tier) => rounds
+    .filter(r => !won.has(r))
+    .reduce((s, r) => s + tier[ROUND_SCORE_KEY[r]], 0);
+
+  const creditBefore = sumRounds(roundsBefore, wonA, tierA) + sumRounds(roundsBefore, wonB, tierB);
+  const creditFromCollision = Math.max(
+    sumRounds(roundsFromCollision, wonA, tierA),
+    sumRounds(roundsFromCollision, wonB, tierB),
+  );
+
+  return creditBefore + creditFromCollision;
 }
 
 // ── Score history builder ──────────────────────────────────────────────────────
@@ -938,7 +1030,8 @@ function _buildScoreHistory(teamNames, matches, advancedTeams, groupWinners) {
  *   teamBreakdown: { [teamName]: { wins, draws, bonuses, knockoutPts, total, potential } },
  *   scoreHistory:  { date, matchId, team, event, pts, runningTotal }[],
  *   flags:         string[],
- *   ptsLeft:       number, — max additional points still achievable (0 once both teams are out)
+ *   ptsLeft:       number, — max additional points still achievable, bracket-aware (0 once both teams are out;
+ *                    knockout ceiling is capped so a participant's two teams can't both be credited with winning it all)
  *   maxPossible:   number, — totalScore + ptsLeft
  * }>} Sorted by totalScore desc; tiebreak: total wins desc. Tied entries share a rank.
  */
@@ -961,7 +1054,22 @@ function calculateScores(matches, standings = null) {
 
     const totalScore = Object.values(teamBreakdown).reduce((s, t) => s + t.total, 0);
     const totalGP    = Object.values(teamBreakdown).reduce((s, t) => s + (t.played ?? 0), 0);
-    const ptsLeft    = Object.values(teamBreakdown).reduce((s, t) => s + (t.potential ?? 0), 0);
+
+    // Combined ceiling: each team's own remaining group upside adds independently,
+    // but knockout potential is bracket-aware — a participant's two teams can't
+    // both be champion (or both survive past whichever round they'd collide in),
+    // so that portion is capped by _pairKnockoutCeiling() rather than just summed.
+    let ptsLeft;
+    if (teamNames.length === 2) {
+      const [teamA, teamB] = teamNames;
+      const groupPart = _groupPotentialPts(teamA, matches, advancedTeams, groupWinners, eliminated)
+                      + _groupPotentialPts(teamB, matches, advancedTeams, groupWinners, eliminated);
+      const knockoutPart = _pairKnockoutCeiling(teamA, teamB, matches, eliminated, teamBreakdown[teamA], teamBreakdown[teamB]);
+      ptsLeft = groupPart + knockoutPart;
+    } else {
+      ptsLeft = Object.values(teamBreakdown).reduce((s, t) => s + (t.potential ?? 0), 0);
+    }
+
     const scoreHistory = _buildScoreHistory(teamNames, matches, advancedTeams, groupWinners);
 
     // Same-group conflict flag (currently only possible for Logan: USA + Switzerland)

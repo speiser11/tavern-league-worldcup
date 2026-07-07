@@ -322,7 +322,7 @@ function _buildDeckChips(teams, breakdown) {
 function _maxPtsHtml(maxPossible, totalScore) {
   if (maxPossible == null) return '';
   if (maxPossible <= (totalScore ?? 0)) return `<span class="lb-pts-left lb-pts-left-zero">final</span>`;
-  return `<span class="lb-pts-left" title="Highest score this player could still finish with if both teams win out from here">Max ${maxPossible}</span>`;
+  return `<span class="lb-pts-left" title="Highest score this player could still finish with, per the actual bracket — only one of their two teams can go all the way">Max ${maxPossible}</span>`;
 }
 
 // ── Form dots ──────────────────────────────────────────────────────────────────
@@ -364,7 +364,7 @@ function _buildPlayerForm(entry, matches) {
 function _buildLegend() {
   const div = document.createElement('div');
   div.className = 'lb-legend';
-  div.textContent = '▲ = Tier A team  ·  Deck chip = that team\'s pts contribution  ·  Form = last 5 results across all 6 teams  ·  Max = highest score still possible if every remaining team wins out';
+  div.textContent = '▲ = Tier A team  ·  Deck chip = that team\'s pts contribution  ·  Form = last 5 results across all 6 teams  ·  Max = highest score still possible per the actual bracket (a player\'s two teams can\'t both go all the way)';
   return div;
 }
 
